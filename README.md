@@ -1,6 +1,26 @@
 # URL Shortener (Go project)
 
 This project is a URL shortener with a REST API.
+ 
+## current Architecture :
+url-shortener/
+│   go.mod
+│   main.go
+│   README.md
+│
+├── internal/
+│   ├── api/
+│   │    handlers.go
+│   │    routes.go
+│   │
+│   ├── db/
+│   │    database.go
+│   │
+│   └── shortener/
+│        generator.go
+│
+└── web/
+     index.html
 
 ## Current Features (Checkpoint 1)
 - Project architecture
