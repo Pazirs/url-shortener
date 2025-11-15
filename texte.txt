@@ -1,0 +1,18 @@
+url-shortener/
+│   go.mod
+│   main.go
+│   README.md
+│
+├── internal/
+│   ├── api/
+│   │    handlers.go
+│   │    routes.go
+│   │
+│   ├── db/
+│   │    database.go
+│   │
+│   └── shortener/
+│        generator.go
+│
+└── web/
+     index.html
