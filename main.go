@@ -12,7 +12,7 @@ func main() {
 
 	fmt.Println("Server is running on http://localhost:8080")
 
-	// Connexion à la base
+	// Connexion à la bases de données
 	if err := db.Connect(); err != nil {
 		log.Fatal(err)
 	}
