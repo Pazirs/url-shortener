@@ -2,26 +2,29 @@ URL Shortener (Go project)
 
 URL shortener with a REST API.
 
-Current Architecture :
+// Project structure for the URL Shortener
+
 url-shortener/
-│   go.mod
-│   main.go
-│   README.md
-│   urls.db
+│
+├── go.mod            // Go module definition
+├── main.go           // Application entry point (starts server)
+├── README.md         // Project documentation
+├── urls.db           // SQLite database (auto-created)
 │
 ├── internal/
-│   ├── api/
-│   │    handlers.go
-│   │    routes.go
+│   ├── api/          // HTTP layer (routes + handlers)
+│   │   ├── handlers.go  // Logic for handling requests (shorten URL, respond JSON)
+│   │   └── routes.go    // Route registration (http.HandleFunc)
 │   │
-│   ├── db/
-│   │    database.go
+│   ├── db/           // Database layer
+│   │   └── database.go  // SQLite connection + table creation
 │   │
-│   └── shortener/
-│        generator.go
+│   └── shortener/    // Business logic
+│       └── generator.go // Generates random short codes
 │
 └── web/
-     index.html
+    └── index.html    // Future UI (optional)
+
 
 
 Current Features :
