@@ -9,7 +9,6 @@ import (
 
 var DB *sql.DB
 
-// Connect initialise la base SQLite
 func Connect() error {
 	var err error
 	DB, err = sql.Open("sqlite3", "urls.db")
@@ -17,14 +16,13 @@ func Connect() error {
 		return err
 	}
 
-	// Vérifie la connexion
 	err = DB.Ping()
 	if err != nil {
 		return err
 	}
 
-	// Crée la table urls si elle n'existe pas
-	createTable := `
+	// Table urls
+	createURLTable := `
 	CREATE TABLE IF NOT EXISTS urls (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		short_code TEXT NOT NULL UNIQUE,
@@ -32,8 +30,21 @@ func Connect() error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 	`
+	_, err = DB.Exec(createURLTable)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	_, err = DB.Exec(createTable)
+	// Table users
+	createUsersTable := `
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT NOT NULL UNIQUE,
+		password_hash TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+	_, err = DB.Exec(createUsersTable)
 	if err != nil {
 		log.Fatal(err)
 	}

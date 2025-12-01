@@ -18,7 +18,6 @@ type ShortenResponse struct {
 	ShortURL string `json:"short_url"`
 }
 
-// Génère un code aléatoire de n caractères
 func generateShortCode(n int) string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	rand.Seed(time.Now().UnixNano())
@@ -32,29 +31,34 @@ func generateShortCode(n int) string {
 
 func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST method is allowed.")
 		return
 	}
 
 	var req ShortenRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil || req.URL == "" {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", "Invalid JSON body.")
+		return
+	}
+
+	if req.URL == "" {
+		writeJSONError(w, http.StatusBadRequest, "missing_url", "The 'url' field is required.")
 		return
 	}
 
 	code := generateShortCode(6)
 
-	// Sauvegarde dans SQLite
 	_, err = db.DB.Exec("INSERT INTO urls (short_code, long_url) VALUES (?, ?)", code, req.URL)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to save URL to database.")
 		return
 	}
 
 	resp := ShortenResponse{
 		ShortURL: fmt.Sprintf("http://localhost:8080/%s", code),
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
