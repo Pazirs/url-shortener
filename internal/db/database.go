@@ -28,7 +28,9 @@ func Connect() error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		short_code TEXT NOT NULL UNIQUE,
 		long_url TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		user_id INTEGER,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 	`
 	_, err = DB.Exec(createURLTable)
@@ -50,5 +52,20 @@ func Connect() error {
 		log.Fatal(err)
 	}
 
+	// Table sessions
+	createSessionsTable := `
+	CREATE TABLE IF NOT EXISTS sessions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		session_token TEXT NOT NULL UNIQUE,
+		expires_at DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+	`
+	_, err = DB.Exec(createSessionsTable)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return nil
 }
