@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"url-shortener/internal/db"
@@ -45,7 +46,6 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Vérification du cookie session_token
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
 		writeJSONError(w, http.StatusUnauthorized, "unauthenticated", "User must be logged in.")
@@ -53,7 +53,6 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionToken := cookie.Value
 
-	// Récupération de l'user_id depuis la table sessions
 	var userID int
 	err = db.DB.QueryRow("SELECT user_id FROM sessions WHERE session_token = ?", sessionToken).Scan(&userID)
 	if err != nil {
@@ -62,7 +61,6 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("UserID récupéré depuis la session :", userID)
 
-	// Décodage du corps JSON
 	var req ShortenRequest
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -75,21 +73,18 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Génération du code court
 	code := generateShortCode(6)
-
 	fmt.Println("Insertion URL :", code, req.URL, userID)
 
 	res, err := db.DB.Exec("INSERT INTO urls (short_code, long_url, user_id) VALUES (?, ?, ?)", code, req.URL, userID)
 	if err != nil {
-		fmt.Println("Erreur SQL :", err) // <-- affichage de l'erreur complète
+		fmt.Println("Erreur SQL :", err)
 		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to save URL to database.")
 		return
 	}
 	lastID, _ := res.LastInsertId()
 	fmt.Println("Insertion réussie, ID :", lastID)
 
-	// Réponse JSON
 	resp := ShortenResponse{
 		ShortURL: fmt.Sprintf("http://localhost:8080/%s", code),
 	}
@@ -104,7 +99,6 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Vérification du cookie de session
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
 		writeJSONError(w, http.StatusUnauthorized, "unauthenticated", "User must be logged in.")
@@ -112,7 +106,6 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionToken := cookie.Value
 
-	// Récupération de l'user_id depuis la table sessions
 	var userID int
 	err = db.DB.QueryRow("SELECT user_id FROM sessions WHERE session_token = ?", sessionToken).Scan(&userID)
 	if err != nil {
@@ -120,7 +113,6 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Récupération des URLs de l'utilisateur
 	rows, err := db.DB.Query("SELECT id, short_code, long_url, created_at FROM urls WHERE user_id = ?", userID)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to retrieve URLs.")
@@ -141,4 +133,94 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(urls)
+}
+
+// Handler pour supprimer une URL
+func DeleteURLHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only DELETE method is allowed.")
+		return
+	}
+
+	cookie, err := r.Cookie("session_token")
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "unauthenticated", "User must be logged in.")
+		return
+	}
+	sessionToken := cookie.Value
+
+	var userID int
+	err = db.DB.QueryRow("SELECT user_id FROM sessions WHERE session_token = ?", sessionToken).Scan(&userID)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "invalid_session", "Session token is invalid.")
+		return
+	}
+
+	shortCode := strings.TrimPrefix(r.URL.Path, "/api/urls/")
+	fmt.Println("ShortCode extrait (DELETE) :", shortCode)
+
+	res, err := db.DB.Exec("DELETE FROM urls WHERE short_code = ? AND user_id = ?", shortCode, userID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to delete URL.")
+		return
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		writeJSONError(w, http.StatusNotFound, "not_found", "URL not found or not owned by user.")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "URL deleted successfully"})
+}
+
+// Handler pour mettre à jour une URL
+type UpdateURLRequest struct {
+	LongURL string `json:"long_url"`
+}
+
+func UpdateURLHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only PUT method is allowed.")
+		return
+	}
+
+	cookie, err := r.Cookie("session_token")
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "unauthenticated", "User must be logged in.")
+		return
+	}
+	sessionToken := cookie.Value
+
+	var userID int
+	err = db.DB.QueryRow("SELECT user_id FROM sessions WHERE session_token = ?", sessionToken).Scan(&userID)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "invalid_session", "Session token is invalid.")
+		return
+	}
+
+	shortCode := strings.TrimPrefix(r.URL.Path, "/api/urls/")
+	fmt.Println("ShortCode extrait (PUT) :", shortCode)
+
+	var req UpdateURLRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.LongURL == "" {
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", "Invalid or missing 'long_url'.")
+		return
+	}
+
+	res, err := db.DB.Exec("UPDATE urls SET long_url = ? WHERE short_code = ? AND user_id = ?", req.LongURL, shortCode, userID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to update URL.")
+		return
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		writeJSONError(w, http.StatusNotFound, "not_found", "URL not found or not owned by user.")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "URL updated successfully"})
 }
