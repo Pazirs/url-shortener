@@ -1,3 +1,5 @@
+// fichier database.go
+
 package db
 
 import (
