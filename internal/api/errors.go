@@ -1,3 +1,4 @@
+// fichier errors.go
 package api
 
 import (

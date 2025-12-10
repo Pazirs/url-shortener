@@ -1,3 +1,4 @@
+// fichier auth.go
 package api
 
 import (
