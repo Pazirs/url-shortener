@@ -5,16 +5,15 @@ import (
 	"net/http"
 )
 
-func SetupRoutes() {
-	// Routes API
-	http.HandleFunc("/api/shorten", ShortenHandler)
-	http.HandleFunc("/api/register", RegisterHandler)
-	http.HandleFunc("/api/login", LoginHandler)
-	http.HandleFunc("/api/my-urls", MyURLsHandler)
-	http.HandleFunc("/api/stats/", StatsHandler)
+func SetupRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/shorten", ShortenHandler)
+	mux.HandleFunc("/api/register", RegisterHandler)
+	mux.HandleFunc("/api/login", LoginHandler)
+	mux.HandleFunc("/api/my-urls", MyURLsHandler)
+	mux.HandleFunc("/api/stats/", StatsHandler)
 
-	// Routes pour manipuler une URL spécifique (PUT et DELETE)
-	http.HandleFunc("/api/urls/", func(w http.ResponseWriter, r *http.Request) {
+	// PUT / DELETE pour une URL spécifique
+	mux.HandleFunc("/api/urls/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodDelete:
 			DeleteURLHandler(w, r)
