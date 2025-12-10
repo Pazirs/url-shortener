@@ -1,3 +1,4 @@
+// fichier handlers.go
 package api
 
 import (
@@ -223,4 +224,118 @@ func UpdateURLHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "URL updated successfully"})
+}
+
+// RedirectHandler : redirige et enregistre un clic (insert url_id)
+func RedirectHandler(w http.ResponseWriter, r *http.Request) {
+	shortCode := strings.TrimPrefix(r.URL.Path, "/")
+	fmt.Println("ShortCode extrait (REDIRECT) :", shortCode)
+
+	if shortCode == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Récupère id et long_url
+	var urlID int
+	var longURL string
+	err := db.DB.QueryRow("SELECT id, long_url FROM urls WHERE short_code = ?", shortCode).Scan(&urlID, &longURL)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// IP (X-Forwarded-For si derrière proxy) et user-agent
+	visitorIP := r.Header.Get("X-Forwarded-For")
+	if visitorIP == "" {
+		// Nettoyage pour enlever le port
+		visitorIP = strings.Split(r.RemoteAddr, ":")[0]
+	}
+	userAgent := r.UserAgent()
+
+	// Enregistrer le clic
+	res, err := db.DB.Exec(
+		"INSERT INTO clicks (url_id, visitor_ip, user_agent) VALUES (?, ?, ?)",
+		urlID, visitorIP, userAgent,
+	)
+	if err != nil {
+		fmt.Println("Erreur lors de l'enregistrement du clic :", err)
+	} else {
+		rowsAffected, _ := res.RowsAffected()
+		fmt.Println("Clic enregistré :", rowsAffected, "ligne(s), urlID =", urlID, "IP =", visitorIP)
+	}
+
+	// Redirection
+	http.Redirect(w, r, longURL, http.StatusFound)
+}
+
+// StatsHandler : retourne stats simples pour un short_code
+func StatsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only GET is allowed.")
+		return
+	}
+
+	shortCode := strings.TrimPrefix(r.URL.Path, "/api/stats/")
+	if shortCode == "" {
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", "Missing short code.")
+		return
+	}
+	fmt.Println("ShortCode extrait (STATS) :", shortCode)
+
+	// Récupérer l'id de l'URL
+	var urlID int
+	err := db.DB.QueryRow("SELECT id FROM urls WHERE short_code = ?", shortCode).Scan(&urlID)
+	if err != nil {
+		writeJSONError(w, http.StatusNotFound, "not_found", "Short code not found.")
+		return
+	}
+
+	// Total clicks
+	var totalClicks int
+	err = db.DB.QueryRow("SELECT COUNT(*) FROM clicks WHERE url_id = ?", urlID).Scan(&totalClicks)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to count clicks.")
+		return
+	}
+
+	// Unique visitors (by IP)
+	var uniqueVisitors int
+	err = db.DB.QueryRow("SELECT COUNT(DISTINCT visitor_ip) FROM clicks WHERE url_id = ?", urlID).Scan(&uniqueVisitors)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to count unique visitors.")
+		return
+	}
+
+	// Exemple d'extension : clics par jour (dernier mois)
+	rows, err := db.DB.Query(
+		`SELECT strftime('%Y-%m-%d', created_at) as day, COUNT(*) 
+		 FROM clicks WHERE url_id = ? GROUP BY day ORDER BY day DESC LIMIT 30`, urlID)
+	if err != nil {
+		// on n'échoue pas totalement si ce détail foire, on continue quand même
+		fmt.Println("Erreur récupération daily:", err)
+	}
+
+	// construire histogramme optionnel
+	clicksByDay := make(map[string]int)
+	if rows != nil {
+		defer rows.Close()
+		for rows.Next() {
+			var day string
+			var cnt int
+			_ = rows.Scan(&day, &cnt)
+			clicksByDay[day] = cnt
+		}
+	}
+
+	// Réponse JSON
+	resp := map[string]interface{}{
+		"short_code":      shortCode,
+		"total_clicks":    totalClicks,
+		"unique_visitors": uniqueVisitors,
+		"clicks_by_day":   clicksByDay,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
