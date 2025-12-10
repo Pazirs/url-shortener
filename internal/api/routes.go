@@ -1,15 +1,19 @@
+// fichier routes.go
 package api
 
-import "net/http"
+import (
+	"net/http"
+)
 
 func SetupRoutes() {
-	// Routes principales
+	// Routes API
 	http.HandleFunc("/api/shorten", ShortenHandler)
 	http.HandleFunc("/api/register", RegisterHandler)
 	http.HandleFunc("/api/login", LoginHandler)
 	http.HandleFunc("/api/my-urls", MyURLsHandler)
+	http.HandleFunc("/api/stats/", StatsHandler)
 
-	// Routes pour manipuler une URL spécifique (DELETE et PUT)
+	// Routes pour manipuler une URL spécifique (PUT et DELETE)
 	http.HandleFunc("/api/urls/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodDelete:
@@ -17,7 +21,8 @@ func SetupRoutes() {
 		case http.MethodPut:
 			UpdateURLHandler(w, r)
 		default:
-			writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only PUT and DELETE are allowed on this route.")
+			writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed",
+				"Only PUT and DELETE are allowed on this route.")
 		}
 	})
 }
