@@ -1,5 +1,7 @@
 // src/Login.jsx
 import { useState } from "react";
+import "./Form.css";
+
 
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState("");
@@ -51,7 +53,9 @@ export default function Login({ onLoginSuccess }) {
         /><br/>
         <button type="submit">Se connecter</button>
       </form>
-      {message && <p>{message}</p>}
+      {message && (
+  <p className={message.includes("réussie") ? "success" : ""}>{message}</p>
+)}
     </div>
   );
 }
