@@ -1,5 +1,7 @@
 // src/Register.jsx
 import { useState } from "react";
+import "./Form.css";
+
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -50,7 +52,9 @@ export default function Register() {
         <button type="submit">S'inscrire</button>
       </form>
 
-      {message && <p>{message}</p>}
+      {message && (
+  <p className={message.includes("réussie") ? "success" : ""}>{message}</p>
+)}
     </div>
   );
 }
