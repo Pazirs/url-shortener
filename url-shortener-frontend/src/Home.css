@@ -1,0 +1,25 @@
+.home-container {
+  text-align: center;
+  margin-top: 80px;
+}
+
+.home-subtitle {
+  font-size: 18px;
+  margin-top: 10px;
+}
+
+.home-button {
+  margin-top: 30px;
+  display: inline-block;
+  padding: 12px 25px;
+  background-color: #007bff;
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.home-button:hover {
+  background-color: #0056b3;
+}
