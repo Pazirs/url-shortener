@@ -1,20 +1,48 @@
+// src/App.jsx
 import { useState } from "react";
-import Login from "./Login";
-import Dashboard from "./Dashboard";
-import "./App.css";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-function App() {
+import Home from "./Home";
+import Login from "./Login";
+import Register from "./Register";
+import Dashboard from "./Dashboard";
+import Header from "./Header";
+
+export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
 
   return (
-    <div style={{ padding: "20px" }}>
-      {loggedIn ? (
-        <Dashboard />
-      ) : (
-        <Login onLoginSuccess={() => setLoggedIn(true)} />
-      )}
-    </div>
+    <BrowserRouter>
+      <Header loggedIn={loggedIn} setLoggedIn={setLoggedIn} />
+
+      <Routes>
+        <Route path="/" element={<Home />} />
+
+        <Route
+          path="/login"
+          element={
+            loggedIn ? (
+              <Navigate to="/dashboard" />
+            ) : (
+              <Login onLoginSuccess={() => setLoggedIn(true)} />
+            )
+          }
+        />
+
+        <Route
+          path="/register"
+          element={loggedIn ? <Navigate to="/dashboard" /> : <Register />}
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            loggedIn ? <Dashboard /> : <Navigate to="/login" />
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App;
