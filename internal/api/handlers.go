@@ -28,11 +28,14 @@ type MyURLsResponse struct {
 	CreatedAt string `json:"created_at"`
 }
 
+type UpdateURLRequest struct {
+	LongURL string `json:"long_url"`
+}
+
 // Génération d'un code court aléatoire
 func generateShortCode(n int) string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	rand.Seed(time.Now().UnixNano())
-
 	code := make([]byte, n)
 	for i := range code {
 		code[i] = letters[rand.Intn(len(letters))]
@@ -60,7 +63,6 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusUnauthorized, "invalid_session", "Session token is invalid or expired.")
 		return
 	}
-	fmt.Println("UserID récupéré depuis la session :", userID)
 
 	var req ShortenRequest
 	err = json.NewDecoder(r.Body).Decode(&req)
@@ -75,14 +77,12 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := generateShortCode(6)
-	fmt.Println("Insertion URL :", code, req.URL, userID)
-
 	res, err := db.DB.Exec("INSERT INTO urls (short_code, long_url, user_id) VALUES (?, ?, ?)", code, req.URL, userID)
 	if err != nil {
-		fmt.Println("Erreur SQL :", err)
 		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to save URL to database.")
 		return
 	}
+
 	lastID, _ := res.LastInsertId()
 	fmt.Println("Insertion réussie, ID :", lastID)
 
@@ -158,8 +158,6 @@ func DeleteURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	shortCode := strings.TrimPrefix(r.URL.Path, "/api/urls/")
-	fmt.Println("ShortCode extrait (DELETE) :", shortCode)
-
 	res, err := db.DB.Exec("DELETE FROM urls WHERE short_code = ? AND user_id = ?", shortCode, userID)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to delete URL.")
@@ -177,10 +175,6 @@ func DeleteURLHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Handler pour mettre à jour une URL
-type UpdateURLRequest struct {
-	LongURL string `json:"long_url"`
-}
-
 func UpdateURLHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only PUT method is allowed.")
@@ -202,8 +196,6 @@ func UpdateURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	shortCode := strings.TrimPrefix(r.URL.Path, "/api/urls/")
-	fmt.Println("ShortCode extrait (PUT) :", shortCode)
-
 	var req UpdateURLRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.LongURL == "" {
 		writeJSONError(w, http.StatusBadRequest, "invalid_request", "Invalid or missing 'long_url'.")
@@ -226,17 +218,15 @@ func UpdateURLHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "URL updated successfully"})
 }
 
-// RedirectHandler : redirige et enregistre un clic (insert url_id)
+// RedirectHandler : redirige et enregistre un clic (insert url_id, IP, city, country)
 func RedirectHandler(w http.ResponseWriter, r *http.Request) {
 	shortCode := strings.TrimPrefix(r.URL.Path, "/")
-	fmt.Println("ShortCode extrait (REDIRECT) :", shortCode)
-
 	if shortCode == "" {
 		http.NotFound(w, r)
 		return
 	}
 
-	// Récupère id et long_url
+	// Récupérer id et long_url
 	var urlID int
 	var longURL string
 	err := db.DB.QueryRow("SELECT id, long_url FROM urls WHERE short_code = ?", shortCode).Scan(&urlID, &longURL)
@@ -245,31 +235,52 @@ func RedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// IP (X-Forwarded-For si derrière proxy) et user-agent
+	// Récupérer l'IP du visiteur
 	visitorIP := r.Header.Get("X-Forwarded-For")
 	if visitorIP == "" {
-		// Nettoyage pour enlever le port
-		visitorIP = strings.Split(r.RemoteAddr, ":")[0]
+		visitorIP = r.RemoteAddr
 	}
+	// Nettoyage pour IPv6 et ports
+	visitorIP = strings.Trim(visitorIP, "[]")
+	visitorIP = strings.Split(visitorIP, ":")[0]
+
 	userAgent := r.UserAgent()
 
-	// Enregistrer le clic
-	res, err := db.DB.Exec(
-		"INSERT INTO clicks (url_id, visitor_ip, user_agent) VALUES (?, ?, ?)",
-		urlID, visitorIP, userAgent,
+	// Initialiser city et country
+	city, country := "", ""
+
+	// Appel à ip-api seulement si IP publique
+	if !strings.HasPrefix(visitorIP, "127.") && visitorIP != "::1" {
+		resp, err := http.Get(fmt.Sprintf("http://ip-api.com/json/%s", visitorIP))
+		if err == nil {
+			defer resp.Body.Close()
+			var result struct {
+				City    string `json:"city"`
+				Country string `json:"country"`
+				Status  string `json:"status"`
+			}
+			_ = json.NewDecoder(resp.Body).Decode(&result)
+			if result.Status == "success" {
+				city = result.City
+				country = result.Country
+			}
+		}
+	}
+
+	// Enregistrer le clic dans la base
+	_, err = db.DB.Exec(
+		"INSERT INTO clicks (url_id, visitor_ip, user_agent, city, country) VALUES (?, ?, ?, ?, ?)",
+		urlID, visitorIP, userAgent, city, country,
 	)
 	if err != nil {
 		fmt.Println("Erreur lors de l'enregistrement du clic :", err)
-	} else {
-		rowsAffected, _ := res.RowsAffected()
-		fmt.Println("Clic enregistré :", rowsAffected, "ligne(s), urlID =", urlID, "IP =", visitorIP)
 	}
 
 	// Redirection
 	http.Redirect(w, r, longURL, http.StatusFound)
 }
 
-// StatsHandler : retourne stats simples pour un short_code
+// StatsHandler : retourne stats avec détails des clics
 func StatsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only GET is allowed.")
@@ -281,9 +292,7 @@ func StatsHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "invalid_request", "Missing short code.")
 		return
 	}
-	fmt.Println("ShortCode extrait (STATS) :", shortCode)
 
-	// Récupérer l'id de l'URL
 	var urlID int
 	err := db.DB.QueryRow("SELECT id FROM urls WHERE short_code = ?", shortCode).Scan(&urlID)
 	if err != nil {
@@ -291,32 +300,16 @@ func StatsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Total clicks
 	var totalClicks int
-	err = db.DB.QueryRow("SELECT COUNT(*) FROM clicks WHERE url_id = ?", urlID).Scan(&totalClicks)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to count clicks.")
-		return
-	}
+	_ = db.DB.QueryRow("SELECT COUNT(*) FROM clicks WHERE url_id = ?", urlID).Scan(&totalClicks)
 
-	// Unique visitors (by IP)
 	var uniqueVisitors int
-	err = db.DB.QueryRow("SELECT COUNT(DISTINCT visitor_ip) FROM clicks WHERE url_id = ?", urlID).Scan(&uniqueVisitors)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to count unique visitors.")
-		return
-	}
+	_ = db.DB.QueryRow("SELECT COUNT(DISTINCT visitor_ip) FROM clicks WHERE url_id = ?", urlID).Scan(&uniqueVisitors)
 
-	// Exemple d'extension : clics par jour (dernier mois)
-	rows, err := db.DB.Query(
+	// Clics par jour
+	rows, _ := db.DB.Query(
 		`SELECT strftime('%Y-%m-%d', created_at) as day, COUNT(*) 
 		 FROM clicks WHERE url_id = ? GROUP BY day ORDER BY day DESC LIMIT 30`, urlID)
-	if err != nil {
-		// on n'échoue pas totalement si ce détail foire, on continue quand même
-		fmt.Println("Erreur récupération daily:", err)
-	}
-
-	// construire histogramme optionnel
 	clicksByDay := make(map[string]int)
 	if rows != nil {
 		defer rows.Close()
@@ -328,12 +321,30 @@ func StatsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Réponse JSON
+	// Détails de chaque clic
+	clickRows, _ := db.DB.Query(
+		"SELECT created_at, visitor_ip, city, country FROM clicks WHERE url_id = ? ORDER BY created_at DESC", urlID)
+	detailClicks := []map[string]string{}
+	if clickRows != nil {
+		defer clickRows.Close()
+		for clickRows.Next() {
+			var createdAt, ip, city, country string
+			_ = clickRows.Scan(&createdAt, &ip, &city, &country)
+			detailClicks = append(detailClicks, map[string]string{
+				"date":    createdAt,
+				"ip":      ip,
+				"city":    city,
+				"country": country,
+			})
+		}
+	}
+
 	resp := map[string]interface{}{
 		"short_code":      shortCode,
 		"total_clicks":    totalClicks,
 		"unique_visitors": uniqueVisitors,
 		"clicks_by_day":   clicksByDay,
+		"detailed_clicks": detailClicks,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
