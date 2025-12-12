@@ -73,15 +73,16 @@ func Connect() error {
 	// Table clicks
 	createClicksTable := `
 	CREATE TABLE IF NOT EXISTS clicks (
-    	id INTEGER PRIMARY KEY AUTOINCREMENT,
-    	url_id INTEGER NOT NULL,
-    	visitor_ip TEXT,
-    	user_agent TEXT,
-    	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    	FOREIGN KEY (url_id) REFERENCES urls(id)
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		url_id INTEGER NOT NULL,
+		visitor_ip TEXT,
+		user_agent TEXT,
+		city TEXT,
+		country TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (url_id) REFERENCES urls(id)
 	);
 	`
-
 	_, err = DB.Exec(createClicksTable)
 	if err != nil {
 		log.Fatal(err)
