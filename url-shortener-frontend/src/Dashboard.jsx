@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import "./Dashboard.css"; // nouveau fichier CSS pour le dashboard
 
 const BACKEND = "http://localhost:8080";
 
@@ -8,7 +9,6 @@ export default function Dashboard() {
   const [urls, setUrls] = useState([]);
   const [message, setMessage] = useState("");
 
-  // Récupérer les URLs de l'utilisateur
   async function fetchUrls() {
     setMessage("");
     try {
@@ -17,16 +17,17 @@ export default function Dashboard() {
         credentials: "include",
       });
 
-      const data = await res.json();
-
+      const data = await res.json().catch(() => []);
       if (!res.ok) {
         setMessage(data.message || "Impossible de récupérer les URLs");
+        setUrls([]);
         return;
       }
 
-      setUrls(data);
-    } catch (err) {
+      setUrls(Array.isArray(data) ? data : []);
+    } catch {
       setMessage("Erreur réseau, backend OFF ?");
+      setUrls([]);
     }
   }
 
@@ -34,7 +35,6 @@ export default function Dashboard() {
     fetchUrls();
   }, []);
 
-  // Raccourcir une URL
   async function handleShorten(e) {
     e.preventDefault();
     setMessage("");
@@ -63,12 +63,11 @@ export default function Dashboard() {
       setShortUrl(data.short_url);
       setMessage("URL raccourcie avec succès !");
       fetchUrls();
-    } catch (err) {
+    } catch {
       setMessage("Erreur réseau, backend OFF ?");
     }
   }
 
-  // Supprimer une URL
   async function handleDelete(shortCode) {
     setMessage("");
     if (!window.confirm("Voulez-vous vraiment supprimer cette URL ?")) return;
@@ -88,20 +87,17 @@ export default function Dashboard() {
 
       setMessage("URL supprimée avec succès");
       fetchUrls();
-    } catch (err) {
+    } catch {
       setMessage("Erreur réseau, backend OFF ?");
     }
   }
 
-  // Modifier une URL
   async function handleEdit(shortCode, currentLongUrl) {
     const newUrl = prompt("Nouvelle URL :", currentLongUrl || "");
     if (!newUrl) return;
 
     if (!/^https?:\/\//.test(newUrl)) {
-      if (!window.confirm("L'URL ne commence pas par http(s). Continuer quand même ?")) {
-        return;
-      }
+      if (!window.confirm("L'URL ne commence pas par http(s). Continuer quand même ?")) return;
     }
 
     try {
@@ -121,12 +117,11 @@ export default function Dashboard() {
 
       setMessage("URL modifiée avec succès !");
       fetchUrls();
-    } catch (err) {
+    } catch {
       setMessage("Erreur réseau, backend OFF ?");
     }
   }
 
-  // Afficher les stats
   async function handleStats(shortCode) {
     try {
       const res = await fetch(`${BACKEND}/api/stats/${shortCode}`, {
@@ -152,7 +147,6 @@ export default function Dashboard() {
         ? days.map(d => `${d}: ${clicksByDay[d]}`).join("\n")
         : "Aucune donnée journalière.";
 
-      // Détails de chaque clic : IP, ville, pays
       let detailedText = "";
       if (detailed.length) {
         detailedText = detailed
@@ -165,77 +159,73 @@ export default function Dashboard() {
       alert(
         `📊 Statistiques pour ${shortCode}\n\nTotal clicks : ${total}\nVisiteurs uniques : ${uniques}\n\nClics par jour:\n${byDayText}\n\nDétails des clics:\n${detailedText}`
       );
-    } catch (err) {
+    } catch {
       alert("Erreur réseau, backend OFF ?");
     }
   }
 
   function shortUrlFromCode(code) {
-    if (!code) return "";
-    return `${BACKEND}/${code}`;
+    return code ? `${BACKEND}/${code}` : "";
   }
 
   return (
-    <div>
+    <div className="dashboard-container">
       <h2>Dashboard</h2>
 
-      <form onSubmit={handleShorten}>
+      <form className="dashboard-form" onSubmit={handleShorten}>
         <input
           type="text"
           placeholder="Collez votre URL ici"
           value={url}
           onChange={e => setUrl(e.target.value)}
-          style={{ width: 400 }}
         />
-        <button type="submit" style={{ marginLeft: 8 }}>Raccourcir</button>
+        <button type="submit">Raccourcir</button>
       </form>
 
       {shortUrl && (
-        <p>
-          Short URL :{" "}
-          <a href={shortUrl} target="_blank" rel="noopener noreferrer">
-            {shortUrl}
-          </a>{" "}
+        <p className="short-url-display">
+          Short URL: <a href={shortUrl} target="_blank" rel="noopener noreferrer">{shortUrl}</a>
           <button onClick={() => navigator.clipboard?.writeText(shortUrl)}>Copier</button>
         </p>
       )}
 
-      {message && <p>{message}</p>}
+      {message && <p className="message-text">{message}</p>}
 
       <h3>Mes URLs</h3>
-      <table border="1" cellPadding="6">
-        <thead>
-          <tr>
-            <th>Short URL</th>
-            <th>Short Code</th>
-            <th>URL originale</th>
-            <th>Date de création</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {urls.map(u => {
-            const shortFull = shortUrlFromCode(u.short_code);
-            return (
-              <tr key={u.id}>
-                <td>
-                  <a href={shortFull} target="_blank" rel="noopener noreferrer">{shortFull}</a>
-                </td>
-                <td>{u.short_code}</td>
-                <td>
-                  <a href={u.long_url} target="_blank" rel="noopener noreferrer">{u.long_url}</a>
-                </td>
-                <td>{u.created_at}</td>
-                <td>
-                  <button onClick={() => handleEdit(u.short_code, u.long_url)}>Modifier</button>{" "}
-                  <button onClick={() => handleStats(u.short_code)}>Stats</button>{" "}
-                  <button onClick={() => handleDelete(u.short_code)}>Supprimer</button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+
+      {urls.length === 0 ? (
+        <p>Vous n’avez encore aucune URL raccourcie. Utilisez le formulaire ci-dessus pour commencer !</p>
+      ) : (
+        <table className="urls-table">
+          <thead>
+            <tr>
+              <th>Short URL</th>
+              <th>Short Code</th>
+              <th>URL originale</th>
+              <th>Date de création</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {urls.map(u => {
+              const shortFull = shortUrlFromCode(u.short_code);
+              return (
+                <tr key={u.id}>
+                  <td><a href={shortFull} target="_blank" rel="noopener noreferrer">{shortFull}</a></td>
+                  <td>{u.short_code}</td>
+                  <td><a href={u.long_url} target="_blank" rel="noopener noreferrer">{u.long_url}</a></td>
+                  <td>{u.created_at}</td>
+                  <td>
+                    <button onClick={() => handleEdit(u.short_code, u.long_url)}>Modifier</button>{" "}
+                    <button onClick={() => handleStats(u.short_code)}>Stats</button>{" "}
+                    <button onClick={() => handleDelete(u.short_code)}>Supprimer</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
