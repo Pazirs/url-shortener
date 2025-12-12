@@ -71,7 +71,6 @@ export default function Dashboard() {
   // Supprimer une URL
   async function handleDelete(shortCode) {
     setMessage("");
-
     if (!window.confirm("Voulez-vous vraiment supprimer cette URL ?")) return;
 
     try {
@@ -99,7 +98,6 @@ export default function Dashboard() {
     const newUrl = prompt("Nouvelle URL :", currentLongUrl || "");
     if (!newUrl) return;
 
-    // validation simple
     if (!/^https?:\/\//.test(newUrl)) {
       if (!window.confirm("L'URL ne commence pas par http(s). Continuer quand même ?")) {
         return;
@@ -107,7 +105,6 @@ export default function Dashboard() {
     }
 
     try {
-      // NOTE: backend expects field "long_url"
       const res = await fetch(`${BACKEND}/api/urls/${shortCode}`, {
         method: "PUT",
         credentials: "include",
@@ -144,31 +141,37 @@ export default function Dashboard() {
         return;
       }
 
-      // backend returns total_clicks, unique_visitors, clicks_by_day
       const total = data.total_clicks ?? data.total ?? 0;
       const uniques = data.unique_visitors ?? data.unique ?? 0;
       const clicksByDay = data.clicks_by_day || {};
+      const detailed = data.detailed_clicks || [];
 
-      // formatage simple
       let byDayText = "";
       const days = Object.keys(clicksByDay).sort();
-      if (days.length === 0) byDayText = "Aucune donnée journalière.";
-      else {
-        byDayText = days.map(d => `${d}: ${clicksByDay[d]}`).join("\n");
+      byDayText = days.length
+        ? days.map(d => `${d}: ${clicksByDay[d]}`).join("\n")
+        : "Aucune donnée journalière.";
+
+      // Détails de chaque clic : IP, ville, pays
+      let detailedText = "";
+      if (detailed.length) {
+        detailedText = detailed
+          .map(c => `${c.date} - IP: ${c.ip || "N/A"}, Ville: ${c.city || "N/A"}, Pays: ${c.country || "N/A"}`)
+          .join("\n");
+      } else {
+        detailedText = "Aucun clic enregistré.";
       }
 
       alert(
-        `📊 Statistiques pour ${shortCode}\n\nTotal clicks : ${total}\nVisiteurs uniques : ${uniques}\n\nClics par jour:\n${byDayText}`
+        `📊 Statistiques pour ${shortCode}\n\nTotal clicks : ${total}\nVisiteurs uniques : ${uniques}\n\nClics par jour:\n${byDayText}\n\nDétails des clics:\n${detailedText}`
       );
     } catch (err) {
       alert("Erreur réseau, backend OFF ?");
     }
   }
 
-  // helper pour construire le short url complète
   function shortUrlFromCode(code) {
     if (!code) return "";
-    // backend expected host
     return `${BACKEND}/${code}`;
   }
 
@@ -192,8 +195,8 @@ export default function Dashboard() {
           Short URL :{" "}
           <a href={shortUrl} target="_blank" rel="noopener noreferrer">
             {shortUrl}
-          </a>
-          {" "} <button onClick={() => navigator.clipboard?.writeText(shortUrl)}>Copier</button>
+          </a>{" "}
+          <button onClick={() => navigator.clipboard?.writeText(shortUrl)}>Copier</button>
         </p>
       )}
 
