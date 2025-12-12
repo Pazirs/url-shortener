@@ -1,5 +1,5 @@
-// src/Header.jsx
 import { Link, useNavigate } from "react-router-dom";
+import "./Header.css"; // nouveau fichier CSS
 
 export default function Header({ loggedIn, setLoggedIn }) {
   const navigate = useNavigate();
@@ -14,28 +14,19 @@ export default function Header({ loggedIn, setLoggedIn }) {
   }
 
   return (
-    <header style={{
-      display: "flex",
-      justifyContent: "space-between",
-      padding: "15px 25px",
-      borderBottom: "1px solid #ddd"
-    }}>
-      <Link to="/" style={{ fontSize: 22, fontWeight: "bold" }}>
-        🚀 Shortify
-      </Link>
-
-      <nav style={{ display: "flex", gap: 15 }}>
+    <header className="header">
+      <Link to="/" className="logo">🚀 Shortify</Link>
+      <nav className="nav">
         {!loggedIn && (
           <>
-            <Link to="/login">Connexion</Link>
-            <Link to="/register">Créer un compte</Link>
+            <Link to="/login" className="nav-link">Connexion</Link>
+            <Link to="/register" className="nav-link">Créer un compte</Link>
           </>
         )}
-
         {loggedIn && (
           <>
-            <Link to="/dashboard">Dashboard</Link>
-            <button onClick={logout}>Déconnexion</button>
+            <Link to="/dashboard" className="nav-link">Dashboard</Link>
+            <button onClick={logout} className="logout-button">Déconnexion</button>
           </>
         )}
       </nav>
