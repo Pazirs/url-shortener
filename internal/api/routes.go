@@ -11,6 +11,7 @@ func SetupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/login", LoginHandler)
 	mux.HandleFunc("/api/my-urls", MyURLsHandler)
 	mux.HandleFunc("/api/stats/", StatsHandler)
+	mux.HandleFunc("/api/me", GetMeHandler)
 
 	// PUT / DELETE pour une URL spécifique
 	mux.HandleFunc("/api/urls/", func(w http.ResponseWriter, r *http.Request) {
