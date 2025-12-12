@@ -32,6 +32,29 @@ type UpdateURLRequest struct {
 	LongURL string `json:"long_url"`
 }
 
+// GetMeHandler : vérifie si la session est valide
+func GetMeHandler(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("session_token")
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "unauthenticated", "No session.")
+		return
+	}
+
+	var userID int
+	err = db.DB.QueryRow("SELECT user_id FROM sessions WHERE session_token = ?", cookie.Value).Scan(&userID)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "invalid_session", "Invalid or expired session.")
+		return
+	}
+
+	// L'utilisateur est connecté → on renvoie juste OK
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"logged_in": true,
+		"user_id":   userID,
+	})
+}
+
 // Génération d'un code court aléatoire
 func generateShortCode(n int) string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
