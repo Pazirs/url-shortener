@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"url-shortener/internal/db"
+
+	"github.com/skip2/go-qrcode"
 )
 
 // Structures de requête et réponse
@@ -388,4 +390,28 @@ func StatsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+// Handler pour générer un QR Code
+func QRHandler(w http.ResponseWriter, r *http.Request) {
+	shortCode := strings.TrimPrefix(r.URL.Path, "/api/qr/")
+	if shortCode == "" {
+		writeJSONError(w, http.StatusBadRequest, "missing_code", "Short code is required.")
+		return
+	}
+
+	// L'URL complète vers laquelle le QR code doit pointer
+	// Note: Idéalement, "http://localhost:8080" devrait être une variable de config
+	fullShortURL := fmt.Sprintf("http://localhost:8080/%s", shortCode)
+
+	// Génère le QR Code (Niveau de récupération Medium, taille 256x256)
+	png, err := qrcode.Encode(fullShortURL, qrcode.Medium, 256)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "qr_error", "Failed to generate QR code.")
+		return
+	}
+
+	// Renvoie l'image directement
+	w.Header().Set("Content-Type", "image/png")
+	w.Write(png)
 }
