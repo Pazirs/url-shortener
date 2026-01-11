@@ -230,6 +230,7 @@ export default function Dashboard() {
                   <td>
                     <button onClick={() => handleEdit(u.short_code, u.long_url)}>Modifier</button>{" "}
                     <button onClick={() => handleStats(u.short_code)}>Stats</button>{" "}
+                    <button onClick={() => window.open(`${BACKEND}/api/qr/${u.short_code}`, "_blank")}> QR Code </button>
                     <button onClick={() => handleDelete(u.short_code)}>Supprimer</button>
                   </td>
                 </tr>
