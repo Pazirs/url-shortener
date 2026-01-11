@@ -14,7 +14,8 @@ import (
 
 // Structures de requête et réponse
 type ShortenRequest struct {
-	URL string `json:"url"`
+	URL         string `json:"url"`
+	CustomAlias string `json:"custom_alias,omitempty"` // Nouveau champ
 }
 
 type ShortenResponse struct {
@@ -99,8 +100,23 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	code := generateShortCode(6)
+	var code string
+	if req.CustomAlias != "" {
+		code = req.CustomAlias
+		// On vérifie si l'alias est déjà pris en base
+		var exists int
+		err = db.DB.QueryRow("SELECT 1 FROM urls WHERE short_code = ?", code).Scan(&exists)
+		if err == nil {
+			writeJSONError(w, http.StatusConflict, "alias_taken", "Cet alias est déjà utilisé.")
+			return
+		}
+	} else {
+		code = generateShortCode(6)
+	}
+
+	// Insertion en base on utilise la variable 'code' définie au-dessus)
 	res, err := db.DB.Exec("INSERT INTO urls (short_code, long_url, user_id) VALUES (?, ?, ?)", code, req.URL, userID)
+
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to save URL to database.")
 		return
