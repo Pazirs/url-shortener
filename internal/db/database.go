@@ -32,6 +32,7 @@ func Connect() error {
 		long_url TEXT NOT NULL,
 		user_id INTEGER,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		expires_at DATETIME,
 		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 	`
