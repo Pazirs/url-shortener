@@ -7,6 +7,7 @@ export default function Dashboard() {
   const [url, setUrl] = useState("");
   const [shortUrl, setShortUrl] = useState("");
   const [urls, setUrls] = useState([]);
+  const [customAlias, setCustomAlias] = useState("");
   const [message, setMessage] = useState("");
 
   async function fetchUrls() {
@@ -50,7 +51,7 @@ export default function Dashboard() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, custom_alias: customAlias }),
       });
 
       const data = await res.json();
@@ -61,6 +62,7 @@ export default function Dashboard() {
       }
 
       setShortUrl(data.short_url);
+      setCustomAlias("");
       setMessage("URL raccourcie avec succès !");
       fetchUrls();
     } catch {
@@ -172,12 +174,22 @@ export default function Dashboard() {
     <div className="dashboard-container">
       <h2>Dashboard</h2>
 
-      <form className="dashboard-form" onSubmit={handleShorten}>
+<form className="dashboard-form" onSubmit={handleShorten}>
         <input
           type="text"
           placeholder="Collez votre URL ici"
           value={url}
           onChange={e => setUrl(e.target.value)}
+          required
+        />
+        {/* Nouvel input pour l'alias */}
+        <input
+          type="text"
+          placeholder="Alias (optionnel)"
+          value={customAlias}
+          onChange={e => setCustomAlias(e.target.value)}
+          maxLength={20}
+          style={{ maxWidth: "150px", marginLeft: "10px" }} 
         />
         <button type="submit">Raccourcir</button>
       </form>
