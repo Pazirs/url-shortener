@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [urls, setUrls] = useState([]);
   const [customAlias, setCustomAlias] = useState("");
   const [message, setMessage] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
 
   async function fetchUrls() {
     setMessage("");
@@ -51,7 +52,11 @@ export default function Dashboard() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, custom_alias: customAlias }),
+        body: JSON.stringify({ 
+          url, 
+          custom_alias: customAlias,
+          expires_at: expiresAt 
+        }),
       });
 
       const data = await res.json();
@@ -62,6 +67,7 @@ export default function Dashboard() {
       }
 
       setShortUrl(data.short_url);
+      setExpiresAt("");
       setCustomAlias("");
       setMessage("URL raccourcie avec succès !");
       fetchUrls();
@@ -190,6 +196,13 @@ export default function Dashboard() {
           onChange={e => setCustomAlias(e.target.value)}
           maxLength={20}
           style={{ maxWidth: "150px", marginLeft: "10px" }} 
+        />
+        {/* Input date expiration */}
+        <input
+          type="datetime-local"
+          value={expiresAt}
+          onChange={e => setExpiresAt(e.target.value)}
+          style={{ maxWidth: "160px", marginLeft: "10px" }}
         />
         <button type="submit">Raccourcir</button>
       </form>
