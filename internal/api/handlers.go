@@ -2,6 +2,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -17,7 +18,8 @@ import (
 // Structures de requête et réponse
 type ShortenRequest struct {
 	URL         string `json:"url"`
-	CustomAlias string `json:"custom_alias,omitempty"` // Nouveau champ
+	CustomAlias string `json:"custom_alias,omitempty"`
+	ExpiresAt   string `json:"expires_at,omitempty"`
 }
 
 type ShortenResponse struct {
@@ -116,8 +118,13 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		code = generateShortCode(6)
 	}
 
-	// Insertion en base on utilise la variable 'code' définie au-dessus)
-	res, err := db.DB.Exec("INSERT INTO urls (short_code, long_url, user_id) VALUES (?, ?, ?)", code, req.URL, userID)
+	// Insertion en base avec ou sans expiration
+	var res sql.Result
+	if req.ExpiresAt != "" {
+		res, err = db.DB.Exec("INSERT INTO urls (short_code, long_url, user_id, expires_at) VALUES (?, ?, ?, ?)", code, req.URL, userID, req.ExpiresAt)
+	} else {
+		res, err = db.DB.Exec("INSERT INTO urls (short_code, long_url, user_id) VALUES (?, ?, ?)", code, req.URL, userID)
+	}
 
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to save URL to database.")
@@ -267,14 +274,30 @@ func RedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Récupérer id et long_url
+	// Récupérer id, long_url et expires_at
 	var urlID int
 	var longURL string
-	err := db.DB.QueryRow("SELECT id, long_url FROM urls WHERE short_code = ?", shortCode).Scan(&urlID, &longURL)
+	var expiresAt sql.NullString // Peut être NULL
+
+	err := db.DB.QueryRow("SELECT id, long_url, expires_at FROM urls WHERE short_code = ?", shortCode).Scan(&urlID, &longURL, &expiresAt)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
+
+	// Vérification de l'expiration
+	if expiresAt.Valid && expiresAt.String != "" {
+		// Le format envoyé par l'input HTML est souvent "YYYY-MM-DDTHH:MM"
+		// SQLite stocke en string, on parse pour comparer
+		expiryTime, err := time.Parse("2006-01-02T15:04", expiresAt.String)
+		if err == nil && time.Now().After(expiryTime) {
+			writeJSONError(w, http.StatusGone, "url_expired", "Ce lien a expiré.")
+			return
+		}
+	}
+
+	// ... la suite (récupération IP, insertion clic, redirection) reste inchangée ...
+	// Reprends à partir de : visitorIP := r.Header.Get("X-Forwarded-For")
 
 	// Récupérer l'IP du visiteur
 	visitorIP := r.Header.Get("X-Forwarded-For")
