@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import "./Dashboard.css";
+import "./Dashboard.css"; // nouveau fichier CSS pour le dashboard
 
 const BACKEND = "http://localhost:8080";
 
@@ -11,21 +11,23 @@ export default function Dashboard() {
   const [message, setMessage] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
 
-  // formatage universel des dates
-  // Prend une date UTC (stockée en BDD) et l'affiche en heure locale du visiteur
+  // Fonction formatage universel (UTC vers Local)
   function formatDate(dateString) {
     if (!dateString) return "";
     
-    // Cas 1 
+    // Normalisation format pour être sûr que c'est traité en UTC
     let safeDateString = dateString;
+    // Si format "YYYY-MM-DD HH:MM:SS" (sans T), on le transforme
     if (dateString.includes(" ") && !dateString.includes("T")) {
         safeDateString = dateString.replace(" ", "T") + "Z";
     } else if (!dateString.endsWith("Z")) {
+        // Si ISO sans Z, on ajoute Z
         safeDateString += "Z";
     }
 
     const date = new Date(safeDateString);
-    return date.toLocaleString(); 
+    // Affichage dans la locale du navigateur (automatique)
+    return date.toLocaleString();
   }
 
   async function fetchUrls() {
@@ -64,14 +66,12 @@ export default function Dashboard() {
       return;
     }
 
-    // CONVERSION
+    // Conversion UTC avant envoi
     let expiresAtUTC = "";
     if (expiresAt) {
-
       const localDate = new Date(expiresAt);
       expiresAtUTC = localDate.toISOString();
     }
-    // -------------------------------------------------
 
     try {
       const res = await fetch(`${BACKEND}/api/shorten`, {
@@ -81,7 +81,7 @@ export default function Dashboard() {
         body: JSON.stringify({ 
           url, 
           custom_alias: customAlias,
-          expires_at: expiresAtUTC
+          expires_at: expiresAtUTC 
         }),
       });
 
@@ -183,7 +183,6 @@ export default function Dashboard() {
 
       let detailedText = "";
       if (detailed.length) {
-        // On formate aussi ici pour que l'historique soit à l'heure locale
         detailedText = detailed
           .map(c => `${formatDate(c.date)} - IP: ${c.ip || "N/A"}, Ville: ${c.city || "N/A"}, Pays: ${c.country || "N/A"}`)
           .join("\n");
@@ -254,7 +253,8 @@ export default function Dashboard() {
               <th>Short URL</th>
               <th>Short Code</th>
               <th>URL originale</th>
-              <th>Date de création</th>
+              <th>Créé le</th>
+              <th>Expiration</th> {/* Colonne ajoutée */}
               <th>Actions</th>
             </tr>
           </thead>
@@ -266,8 +266,9 @@ export default function Dashboard() {
                   <td><a href={shortFull} target="_blank" rel="noopener noreferrer">{shortFull}</a></td>
                   <td>{u.short_code}</td>
                   <td><a href={u.long_url} target="_blank" rel="noopener noreferrer">{u.long_url}</a></td>
-                  {/* Formatage automatique selon le navigateur du client */}
                   <td>{formatDate(u.created_at)}</td>
+                  {/* Affichage de la date d'expiration ou 'Aucune' */}
+                  <td>{u.expires_at ? formatDate(u.expires_at) : "Aucune"}</td>
                   <td>
                     <button onClick={() => handleEdit(u.short_code, u.long_url)}>Modifier</button>{" "}
                     <button onClick={() => handleStats(u.short_code)}>Stats</button>{" "}
