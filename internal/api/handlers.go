@@ -30,13 +30,14 @@ type MyURLsResponse struct {
 	ShortCode string `json:"short_code"`
 	LongURL   string `json:"long_url"`
 	CreatedAt string `json:"created_at"`
+	ExpiresAt string `json:"expires_at,omitempty"` // NOUVEAU CHAMP
 }
 
 type UpdateURLRequest struct {
 	LongURL string `json:"long_url"`
 }
 
-// vérifie si la session est valide
+// GetMeHandler : vérifie si la session est valide
 func GetMeHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
@@ -102,17 +103,14 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//  VERIFICATION DATE (UTC)
+	// Vérification date futur
 	if req.ExpiresAt != "" {
-
 		expiryTime, err := time.Parse(time.RFC3339, req.ExpiresAt)
 		if err != nil {
-
 			writeJSONError(w, http.StatusBadRequest, "invalid_date", "Format de date invalide. Attendu : ISO 8601 UTC.")
 			return
 		}
 
-		// Comparaison en UTC
 		if time.Now().UTC().After(expiryTime.UTC()) {
 			writeJSONError(w, http.StatusBadRequest, "date_past", "La date d'expiration doit être dans le futur.")
 			return
@@ -171,7 +169,8 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.DB.Query("SELECT id, short_code, long_url, created_at FROM urls WHERE user_id = ?", userID)
+	// MODIFICATION ICI : On récupère aussi expires_at
+	rows, err := db.DB.Query("SELECT id, short_code, long_url, created_at, expires_at FROM urls WHERE user_id = ?", userID)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to retrieve URLs.")
 		return
@@ -181,9 +180,15 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 	var urls []MyURLsResponse
 	for rows.Next() {
 		var u MyURLsResponse
-		err := rows.Scan(&u.ID, &u.ShortCode, &u.LongURL, &u.CreatedAt)
+		var expiresAt sql.NullString // Variable temporaire pour gérer le NULL
+
+		err := rows.Scan(&u.ID, &u.ShortCode, &u.LongURL, &u.CreatedAt, &expiresAt)
 		if err != nil {
 			continue
+		}
+		// Si une date d'expiration existe, on l'ajoute à la réponse
+		if expiresAt.Valid {
+			u.ExpiresAt = expiresAt.String
 		}
 		urls = append(urls, u)
 	}
@@ -292,19 +297,15 @@ func RedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//  VERIFICATION EXPIRATION (UTC)
+	// Vérification expiration (UTC)
 	if expiresAt.Valid && expiresAt.String != "" {
-		// On parse la date stockée en DB
 		expiryTime, err := time.Parse(time.RFC3339, expiresAt.String)
-
-		// Si erreur, on essaie le format SQLite quiiù est par défaut
 		if err != nil {
-			// On parse
 			expiryTime, err = time.Parse("2006-01-02 15:04:05", expiresAt.String)
 		}
 
 		if err == nil && time.Now().UTC().After(expiryTime.UTC()) {
-			w.WriteHeader(http.StatusGone) // 410 Gone
+			w.WriteHeader(http.StatusGone)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			fmt.Fprintf(w, `
 				<!DOCTYPE html>
