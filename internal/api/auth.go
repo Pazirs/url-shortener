@@ -12,8 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// ---------- Register ----------
-
+// Register
 type RegisterRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -55,7 +54,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// ---------- Login ----------
+//  Login
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -93,7 +92,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Récupère l'utilisateur depuis la BDD
+	// Récupère l'utilisateur depuis la base de données
 	var userID int
 	var passwordHash string
 	err := db.DB.QueryRow("SELECT id, password_hash FROM users WHERE email = ?", req.Email).Scan(&userID, &passwordHash)
@@ -133,4 +132,26 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	resp := LoginResponse{Message: "Connexion réussie"}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+//Logout
+
+func LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. On récupère le cookie pour supprimer la session en base
+	cookie, err := r.Cookie("session_token")
+	if err == nil {
+		db.DB.Exec("DELETE FROM sessions WHERE session_token = ?", cookie.Value)
+	}
+
+	// 2. On écrase le cookie dans le navigateur
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Déconnexion réussie"})
 }
