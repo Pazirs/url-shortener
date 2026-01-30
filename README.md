@@ -1,134 +1,129 @@
 # 🚀 URL Shortener (Shortify)
 
-Un service complet de raccourcissement d'URL full-stack, développé en **Go** (Golang) et **React**.
-Ce projet permet de transformer des URLs longues en liens courts, de personnaliser les alias, de générer des QR Codes et de suivre des statistiques détaillées.
+A complete full-stack URL shortening service built with **Go** (Golang) and **React**.
+This project allows you to transform long URLs into short links, customize aliases, generate QR codes, and track detailed analytics.
 
 ---
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-### 🔗 Fonctionnalités Principales
-* **Raccourcissement de lien** : Génération automatique de codes courts (ex: `/aBz12`) ou création d'**alias personnalisés** (ex: `/mon-projet`).
-* **QR Codes** : Génération instantanée d'un QR Code pour chaque lien raccourci.
-* **Expiration** : Possibilité de définir une date/heure d'expiration. Le lien devient invalide (Page 410 Gone) une fois la date passée.
-* **Redirection intelligente** : Redirection rapide vers l'URL d'origine.
+### 🔗 Core Features
+| Feature | Description |
+| :--- | :--- |
+| **Link Shortening** | Automatic generation of short codes (e.g. `/aBz12`) or creation of **custom aliases** (e.g. `/my-project`). |
+| **QR Codes** | Instant QR code generation for every shortened link. |
+| **Expiration** | Ability to set an expiration date/time. The link becomes invalid (Page 410 Gone) once expired. |
+| **Redirection** | Fast and reliable redirection to the original URL. |
 
 ### 📊 Analytics & Dashboard
-* **Tableau de bord utilisateur** : Gestion complète des liens (Liste, Modification, Suppression).
-* **Statistiques** :
-    * Nombre total de clics.
-    * Visiteurs uniques.
-    * Graphique des clics par jour (30 derniers jours).
-    * Détails des clics : Date, Adresse IP, Ville et Pays (Géolocalisation).
+* **User Dashboard**: Full link management (List, Edit, Delete).
+* **Detailed Statistics**:
+    * Total number of clicks.
+    * Unique visitors.
+    * 📈 Clicks per day chart (last 30 days).
+    * 🌍 Click details: Date, IP address, City, and Country (Geolocation).
 
-### 🛡️ Sécurité & Technique
-* **Authentification** : Inscription et Connexion sécurisées (mots de passe hashés avec bcrypt, sessions par cookie HttpOnly).
-* **Rate Limiting** : Protection contre le spam (limite de requêtes par IP via Middleware).
-* **Base de données** : Stockage persistant avec **SQLite**.
+### 🛡️ Security & Technical
+* **Authentication**: Secure signup and login (passwords hashed with bcrypt, sessions via HttpOnly cookies).
+* **Rate Limiting**: Anti-spam protection (IP-based request limits using middleware).
+* **Database**: Persistent storage with **SQLite**.
 
 ---
 
-## 🛠️ Stack Technique
+## 🛠️ Tech Stack
 
 ### Backend
-* **Langage** : Go (Golang)
-* **Base de données** : SQLite3
-* **Authentification** : Sessions & Cookies
-* **Dépendances principales** :
-    * `github.com/mattn/go-sqlite3` (Driver SQL)
-    * `golang.org/x/crypto` (Hashage mot de passe)
-    * `github.com/skip2/go-qrcode` (Génération QR Code)
+* **Language**: Go (Golang)
+* **Database**: SQLite3
+* **Authentication**: Sessions & Cookies
+* **Main Dependencies**:
+    * `github.com/mattn/go-sqlite3` (SQL driver)
+    * `golang.org/x/crypto` (Password hashing)
+    * `github.com/skip2/go-qrcode` (QR code generation)
 
 ### Frontend
-* **Framework** : React (v19)
-* **Build Tool** : Vite
-* **Routing** : React Router DOM
-* **Style** : CSS Modulaire
+* **Framework**: React (v19)
+* **Build Tool**: Vite
+* **Routing**: React Router DOM
+* **Style**: Modular CSS
 
 ---
 
-## 🚀 Installation et Lancement
+## 🚀 Installation & Running
 
-Prérequis : Avoir **Go** et **Node.js** installés sur votre machine.
+**Prerequisites**: Make sure **Go** and **Node.js** are installed on your machine.
 
-### 1. Cloner le projet
+### 1. Clone the repository
 ```bash
-git clone [https://github.com/Pazirs/url-shortener.git](https://github.com/Pazirs/url-shortener.git)
+git clone https://github.com/Pazirs/url-shortener.git
 cd url-shortener
-````
-### 2. Cloner le projet
-Lancer le Backend (Serveur API)
-Le backend gère la logique, la base de données et sert l'API sur le port 8080.
-
-Ouvrez un terminal à la racine du projet :
-
-```bash
-
-# Installe les dépendances Go
-go mod tidy
-
-# Lance le serveur
-go run main.go
-✅ Le serveur démarrera sur http://localhost:8080. Une base de données urls.db sera automatiquement créée à la racine.
 ```
 
-### 3. Lancer le Frontend (Interface React)
-Le frontend est l'interface utilisateur. Il tourne sur le port 5173 (par défaut) et communique avec le backend.
+### 2. Run the Backend (API Server)
+The backend handles the business logic, database, and serves the API on port `8080`.
 
-Ouvrez un deuxième terminal :
-
+Open a terminal at the project root:
 ```bash
+# Install Go dependencies
+go mod tidy
 
+# Start the server
+go run main.go
+```
+> ✅ The server will start on `http://localhost:8080`.
+> A `urls.db` database will be automatically created at the root.
+
+### 3. Run the Frontend (React UI)
+The frontend is the user interface. It runs on port `5173` (by default) and communicates with the backend.
+
+Open a **second terminal**:
+```bash
 cd url-shortener-frontend
 
-# Installe les dépendances Node
+# Install Node dependencies
 npm install
 
-# Lance le serveur de développement
+# Start the development server
 npm run dev
+```
+> ✅ Click the displayed link (e.g., `http://localhost:5173`) to open the app in your browser.
+
+---
+
+## 📖 Usage Guide
+
+1.  **Sign Up**: Create an account using the "Create account" form.
+2.  **Login**: Log in to access your Dashboard.
+3.  **Shorten**:
+    * Paste a long URL.
+    * (Optional) Choose a custom **Alias**.
+    * (Optional) Set an **Expiration Date**.
+    * Click "Shorten".
+4.  **Manage**:
+    * Copy the short link.
+    * Click **QR Code** to view/download it.
+    * Click **Stats** to see who clicked your link.
+
+---
+
+## 📂 Project Structure
+
 ```bash
-✅ Cliquez sur le lien affiché (ex: http://localhost:5173) pour ouvrir l'application dans votre navigateur.
-
-📖 Guide d'utilisation
-Inscription : Créez un compte via le formulaire "Créer un compte".
-
-Connexion : Connectez-vous pour accéder à votre Dashboard.
-
-Raccourcir :
-
-Collez une URL longue.
-
-(Optionnel) Choisissez un Alias personnalisé.
-
-(Optionnel) Définissez une Date d'expiration.
-
-Cliquez sur "Raccourcir".
-
-Gérer :
-
-Copiez le lien court.
-
-Cliquez sur QR Code pour l'afficher/télécharger.
-
-Cliquez sur Stats pour voir qui a cliqué sur votre lien.
-
-📂 Structure du Projet
 url-shortener/
-├── main.go                 # Point d'entrée du Backend (Serveur, CORS, Rate Limit)
-├── go.mod                  # Dépendances Go
-├── urls.db                 # Base de données SQLite (générée au lancement)
+├── main.go                 # Backend entry point (Server, CORS, Rate Limit)
+├── go.mod                  # Go dependencies
+├── urls.db                 # SQLite database (generated on startup)
 │
 ├── internal/
-│   ├── api/                # Logique API (Handlers, Routes, Middleware, Auth)
-│   └── db/                 # Connexion BDD et Création des tables
+│   ├── api/                # API logic (Handlers, Routes, Middleware, Auth)
+│   └── db/                 # Database connection and table creation
 │
-└── url-shortener-frontend/ # Dossier du Frontend React
+└── url-shortener-frontend/ # React Frontend folder
     ├── src/
-    │   ├── App.jsx         # Composant principal (Routing)
-    │   ├── Dashboard.jsx   # Tableau de bord (Logique principale UI)
-    │   └── ...             # Autres composants (Login, Register, Header)
-    └── package.json        # Dépendances JS
-👤 Auteur
-Projet réalisé dans le cadre du cours de Golang.
+    │   ├── App.jsx         # Main component (Routing)
+    │   ├── Dashboard.jsx   # Dashboard (Main UI logic)
+    │   └── ...             # Other components (Login, Register, Header)
+    └── package.json        # JS dependencies
+```
 
-
+---
