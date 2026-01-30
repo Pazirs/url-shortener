@@ -9,16 +9,16 @@ import Dashboard from "./Dashboard";
 import Header from "./Header";
 
 export default function App() {
-  // On commence par false, mais on va vérifier direct avec useEffect
+  // On commence par false, mais on va vérifier tout de suite avec useEffect
   const [loggedIn, setLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true); // Pour éviter le "blink" vers Login
 
-  // Vérifie si l'utilisateur a déjà un cookie de session qui soit valide
+  // Vérifie si l'utilisateur a déjà un cookie de session valide au chargement
   useEffect(() => {
     async function checkSession() {
       try {
         const res = await fetch("http://localhost:8080/api/me", {
-          credentials: "include", // Envoie ce cookie
+          credentials: "include", // Envoie le cookie
         });
         if (res.ok) {
           setLoggedIn(true);
@@ -26,7 +26,7 @@ export default function App() {
       } catch (err) {
         console.log("Pas de session active ou erreur serveur");
       } finally {
-        setLoading(false); // On fini ici
+        setLoading(false); // On a fini de vérifier
       }
     }
     checkSession();
