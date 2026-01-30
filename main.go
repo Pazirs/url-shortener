@@ -14,16 +14,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Création du mux
+	// Création du mux (le routeur)
 	mux := http.NewServeMux()
 
 	// Setup des routes API sur ce mux
-	api.SetupRoutes(mux) // modification nécessaire dans routes.go pour accepter un mux
+	api.SetupRoutes(mux)
 
 	// Redirection des short codes (toutes les autres routes)
 	mux.HandleFunc("/", api.RedirectHandler)
 
-	// Middleware CORS complet
+	// 1. On enveloppe le routeur avec le Rate Limiter (Sécurité)
+	rateLimitedMux := api.RateLimitMiddleware(mux)
+
+	// 2. Middleware CORS (qui enveloppe maintenant le routeur sécurisé)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Autoriser le front-end
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
@@ -37,8 +40,8 @@ func main() {
 			return
 		}
 
-		// Passer la requête au mux
-		mux.ServeHTTP(w, r)
+		// Passer la requête au routeur sécurisé
+		rateLimitedMux.ServeHTTP(w, r)
 	})
 
 	log.Println("Server is running on http://localhost:8080")
