@@ -1,4 +1,3 @@
-// fichier handlers.go
 package api
 
 import (
@@ -37,7 +36,7 @@ type UpdateURLRequest struct {
 	LongURL string `json:"long_url"`
 }
 
-// GetMeHandler : vérifie si la session est valide
+// vérifie si la session est valide
 func GetMeHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
@@ -52,7 +51,6 @@ func GetMeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// L'utilisateur est connecté → on renvoie juste OK
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"logged_in": true,
@@ -104,10 +102,26 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//  VERIFICATION DATE (UTC)
+	if req.ExpiresAt != "" {
+
+		expiryTime, err := time.Parse(time.RFC3339, req.ExpiresAt)
+		if err != nil {
+
+			writeJSONError(w, http.StatusBadRequest, "invalid_date", "Format de date invalide. Attendu : ISO 8601 UTC.")
+			return
+		}
+
+		// Comparaison en UTC
+		if time.Now().UTC().After(expiryTime.UTC()) {
+			writeJSONError(w, http.StatusBadRequest, "date_past", "La date d'expiration doit être dans le futur.")
+			return
+		}
+	}
+
 	var code string
 	if req.CustomAlias != "" {
 		code = req.CustomAlias
-		// On vérifie si l'alias est déjà pris en base
 		var exists int
 		err = db.DB.QueryRow("SELECT 1 FROM urls WHERE short_code = ?", code).Scan(&exists)
 		if err == nil {
@@ -118,21 +132,16 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		code = generateShortCode(6)
 	}
 
-	// Insertion en base avec ou sans expiration
-	var res sql.Result
 	if req.ExpiresAt != "" {
-		res, err = db.DB.Exec("INSERT INTO urls (short_code, long_url, user_id, expires_at) VALUES (?, ?, ?, ?)", code, req.URL, userID, req.ExpiresAt)
+		_, err = db.DB.Exec("INSERT INTO urls (short_code, long_url, user_id, expires_at) VALUES (?, ?, ?, ?)", code, req.URL, userID, req.ExpiresAt)
 	} else {
-		res, err = db.DB.Exec("INSERT INTO urls (short_code, long_url, user_id) VALUES (?, ?, ?)", code, req.URL, userID)
+		_, err = db.DB.Exec("INSERT INTO urls (short_code, long_url, user_id) VALUES (?, ?, ?)", code, req.URL, userID)
 	}
 
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to save URL to database.")
 		return
 	}
-
-	lastID, _ := res.LastInsertId()
-	fmt.Println("Insertion réussie, ID :", lastID)
 
 	resp := ShortenResponse{
 		ShortURL: fmt.Sprintf("http://localhost:8080/%s", code),
@@ -174,8 +183,7 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 		var u MyURLsResponse
 		err := rows.Scan(&u.ID, &u.ShortCode, &u.LongURL, &u.CreatedAt)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to parse URL data.")
-			return
+			continue
 		}
 		urls = append(urls, u)
 	}
@@ -266,7 +274,7 @@ func UpdateURLHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "URL updated successfully"})
 }
 
-// RedirectHandler : redirige et enregistre un clic (insert url_id, IP, city, country)
+// RedirectHandler : redirige et enregistre un clic
 func RedirectHandler(w http.ResponseWriter, r *http.Request) {
 	shortCode := strings.TrimPrefix(r.URL.Path, "/")
 	if shortCode == "" {
@@ -274,10 +282,9 @@ func RedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Récupérer id, long_url et expires_at
 	var urlID int
 	var longURL string
-	var expiresAt sql.NullString // Peut être NULL
+	var expiresAt sql.NullString
 
 	err := db.DB.QueryRow("SELECT id, long_url, expires_at FROM urls WHERE short_code = ?", shortCode).Scan(&urlID, &longURL, &expiresAt)
 	if err != nil {
@@ -285,37 +292,61 @@ func RedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Vérification de l'expiration
+	//  VERIFICATION EXPIRATION (UTC)
 	if expiresAt.Valid && expiresAt.String != "" {
-		// Le format envoyé par l'input HTML est souvent "YYYY-MM-DDTHH:MM"
-		// SQLite stocke en string, on parse pour comparer
-		expiryTime, err := time.Parse("2006-01-02T15:04", expiresAt.String)
-		if err == nil && time.Now().After(expiryTime) {
-			writeJSONError(w, http.StatusGone, "url_expired", "Ce lien a expiré.")
+		// On parse la date stockée en DB
+		expiryTime, err := time.Parse(time.RFC3339, expiresAt.String)
+
+		// Si erreur, on essaie le format SQLite quiiù est par défaut
+		if err != nil {
+			// On parse
+			expiryTime, err = time.Parse("2006-01-02 15:04:05", expiresAt.String)
+		}
+
+		if err == nil && time.Now().UTC().After(expiryTime.UTC()) {
+			w.WriteHeader(http.StatusGone) // 410 Gone
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprintf(w, `
+				<!DOCTYPE html>
+				<html>
+				<head>
+					<meta charset="utf-8">
+					<title>Lien expiré</title>
+					<style>
+						body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f4f4f4; color: #333; }
+						.container { background: white; max-width: 500px; margin: 0 auto; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+						h1 { color: #d93025; font-size: 24px; }
+						p { font-size: 16px; color: #555; line-height: 1.5; }
+						a { display: inline-block; margin-top: 20px; text-decoration: none; color: white; background-color: #1a73e8; padding: 10px 20px; border-radius: 5px; }
+						a:hover { background-color: #155ab6; }
+					</style>
+				</head>
+				<body>
+					<div class="container">
+						<h1>Lien expiré ⏳</h1>
+						<p>Désolé, ce lien court a atteint sa date d'expiration et n'est plus disponible.</p>
+						<a href="/">Retour à l'accueil</a>
+					</div>
+				</body>
+				</html>
+			`)
 			return
 		}
 	}
 
-	// ... la suite (récupération IP, insertion clic, redirection) reste inchangée ...
-	// Reprends à partir de : visitorIP := r.Header.Get("X-Forwarded-For")
-
-	// Récupérer l'IP du visiteur
 	visitorIP := r.Header.Get("X-Forwarded-For")
 	if visitorIP == "" {
 		visitorIP = r.RemoteAddr
 	}
-	// Nettoyage pour IPv6 et ports
 	visitorIP = strings.Trim(visitorIP, "[]")
 	visitorIP = strings.Split(visitorIP, ":")[0]
 
 	userAgent := r.UserAgent()
 
-	// Initialiser city et country
 	city, country := "", ""
-
-	// Appel à ip-api seulement si IP publique
 	if !strings.HasPrefix(visitorIP, "127.") && visitorIP != "::1" {
-		resp, err := http.Get(fmt.Sprintf("http://ip-api.com/json/%s", visitorIP))
+		client := http.Client{Timeout: 2 * time.Second}
+		resp, err := client.Get(fmt.Sprintf("http://ip-api.com/json/%s", visitorIP))
 		if err == nil {
 			defer resp.Body.Close()
 			var result struct {
@@ -331,16 +362,11 @@ func RedirectHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Enregistrer le clic dans la base
-	_, err = db.DB.Exec(
+	_, _ = db.DB.Exec(
 		"INSERT INTO clicks (url_id, visitor_ip, user_agent, city, country) VALUES (?, ?, ?, ?, ?)",
 		urlID, visitorIP, userAgent, city, country,
 	)
-	if err != nil {
-		fmt.Println("Erreur lors de l'enregistrement du clic :", err)
-	}
 
-	// Redirection
 	http.Redirect(w, r, longURL, http.StatusFound)
 }
 
@@ -370,7 +396,6 @@ func StatsHandler(w http.ResponseWriter, r *http.Request) {
 	var uniqueVisitors int
 	_ = db.DB.QueryRow("SELECT COUNT(DISTINCT visitor_ip) FROM clicks WHERE url_id = ?", urlID).Scan(&uniqueVisitors)
 
-	// Clics par jour
 	rows, _ := db.DB.Query(
 		`SELECT strftime('%Y-%m-%d', created_at) as day, COUNT(*) 
 		 FROM clicks WHERE url_id = ? GROUP BY day ORDER BY day DESC LIMIT 30`, urlID)
@@ -385,20 +410,19 @@ func StatsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Détails de chaque clic
 	clickRows, _ := db.DB.Query(
 		"SELECT created_at, visitor_ip, city, country FROM clicks WHERE url_id = ? ORDER BY created_at DESC", urlID)
 	detailClicks := []map[string]string{}
 	if clickRows != nil {
 		defer clickRows.Close()
 		for clickRows.Next() {
-			var createdAt, ip, city, country string
+			var createdAt, ip, city, country sql.NullString
 			_ = clickRows.Scan(&createdAt, &ip, &city, &country)
 			detailClicks = append(detailClicks, map[string]string{
-				"date":    createdAt,
-				"ip":      ip,
-				"city":    city,
-				"country": country,
+				"date":    createdAt.String,
+				"ip":      ip.String,
+				"city":    city.String,
+				"country": country.String,
 			})
 		}
 	}
@@ -423,18 +447,13 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// L'URL complète vers laquelle le QR code doit pointer
-	// Note: Idéalement, "http://localhost:8080" devrait être une variable de config
 	fullShortURL := fmt.Sprintf("http://localhost:8080/%s", shortCode)
-
-	// Génère le QR Code (Niveau de récupération Medium, taille 256x256)
 	png, err := qrcode.Encode(fullShortURL, qrcode.Medium, 256)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "qr_error", "Failed to generate QR code.")
 		return
 	}
 
-	// Renvoie l'image directement
 	w.Header().Set("Content-Type", "image/png")
 	w.Write(png)
 }
