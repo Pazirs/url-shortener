@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import "./Dashboard.css"; // nouveau fichier CSS pour le dashboard
+import "./Dashboard.css";
 
 const BACKEND = "http://localhost:8080";
 
@@ -10,6 +10,23 @@ export default function Dashboard() {
   const [customAlias, setCustomAlias] = useState("");
   const [message, setMessage] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+
+  // formatage universel des dates
+  // Prend une date UTC (stockée en BDD) et l'affiche en heure locale du visiteur
+  function formatDate(dateString) {
+    if (!dateString) return "";
+    
+    // Cas 1 
+    let safeDateString = dateString;
+    if (dateString.includes(" ") && !dateString.includes("T")) {
+        safeDateString = dateString.replace(" ", "T") + "Z";
+    } else if (!dateString.endsWith("Z")) {
+        safeDateString += "Z";
+    }
+
+    const date = new Date(safeDateString);
+    return date.toLocaleString(); 
+  }
 
   async function fetchUrls() {
     setMessage("");
@@ -47,6 +64,15 @@ export default function Dashboard() {
       return;
     }
 
+    // CONVERSION
+    let expiresAtUTC = "";
+    if (expiresAt) {
+
+      const localDate = new Date(expiresAt);
+      expiresAtUTC = localDate.toISOString();
+    }
+    // -------------------------------------------------
+
     try {
       const res = await fetch(`${BACKEND}/api/shorten`, {
         method: "POST",
@@ -55,7 +81,7 @@ export default function Dashboard() {
         body: JSON.stringify({ 
           url, 
           custom_alias: customAlias,
-          expires_at: expiresAt 
+          expires_at: expiresAtUTC
         }),
       });
 
@@ -157,8 +183,9 @@ export default function Dashboard() {
 
       let detailedText = "";
       if (detailed.length) {
+        // On formate aussi ici pour que l'historique soit à l'heure locale
         detailedText = detailed
-          .map(c => `${c.date} - IP: ${c.ip || "N/A"}, Ville: ${c.city || "N/A"}, Pays: ${c.country || "N/A"}`)
+          .map(c => `${formatDate(c.date)} - IP: ${c.ip || "N/A"}, Ville: ${c.city || "N/A"}, Pays: ${c.country || "N/A"}`)
           .join("\n");
       } else {
         detailedText = "Aucun clic enregistré.";
@@ -180,7 +207,7 @@ export default function Dashboard() {
     <div className="dashboard-container">
       <h2>Dashboard</h2>
 
-<form className="dashboard-form" onSubmit={handleShorten}>
+      <form className="dashboard-form" onSubmit={handleShorten}>
         <input
           type="text"
           placeholder="Collez votre URL ici"
@@ -239,7 +266,8 @@ export default function Dashboard() {
                   <td><a href={shortFull} target="_blank" rel="noopener noreferrer">{shortFull}</a></td>
                   <td>{u.short_code}</td>
                   <td><a href={u.long_url} target="_blank" rel="noopener noreferrer">{u.long_url}</a></td>
-                  <td>{u.created_at}</td>
+                  {/* Formatage automatique selon le navigateur du client */}
+                  <td>{formatDate(u.created_at)}</td>
                   <td>
                     <button onClick={() => handleEdit(u.short_code, u.long_url)}>Modifier</button>{" "}
                     <button onClick={() => handleStats(u.short_code)}>Stats</button>{" "}
