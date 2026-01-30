@@ -21,14 +21,14 @@ type RateLimiter struct {
 	window   time.Duration
 }
 
-// Création d'une nouvelle instance (10 req / 1 minute)
+// Création d'une nouvelle instance (10 requetesss / 1 minute)
 var globalLimiter = &RateLimiter{
 	visitors: make(map[string]*visitor),
 	limit:    10,
 	window:   time.Minute,
 }
 
-// Fonction de nettoyage (pour ne pas saturer la mémoire avec de vieilles IPs)
+// Fonction de nettoyage (pour ne pas saturer la mémoire avec de vieilles IP
 func init() {
 	go func() {
 		for {
@@ -47,8 +47,12 @@ func init() {
 // Middleware
 func RateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// On ne limite pas les requêtes OPTIONS (CORS pré-vol)
 		if r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if r.URL.Path == "/api/me" || strings.HasPrefix(r.URL.Path, "/api/stats/") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -71,7 +75,7 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 				startTime: time.Now(),
 			}
 		} else {
-			// Visiteur existant dans la fenêtre actuelle
+			// Visiteur qui existe dans la fenêtre actuelle
 			if v.count >= globalLimiter.limit {
 				globalLimiter.mu.Unlock()
 				writeJSONError(w, http.StatusTooManyRequests, "rate_limit_exceeded", "Trop de requêtes. Veuillez patienter.")
