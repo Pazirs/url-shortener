@@ -9,10 +9,11 @@ func SetupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/shorten", ShortenHandler)
 	mux.HandleFunc("/api/register", RegisterHandler)
 	mux.HandleFunc("/api/login", LoginHandler)
+	mux.HandleFunc("/api/logout", LogoutHandler)
 	mux.HandleFunc("/api/my-urls", MyURLsHandler)
 	mux.HandleFunc("/api/stats/", StatsHandler)
+	mux.HandleFunc("/api/qr/", QRHandler)
 	mux.HandleFunc("/api/me", GetMeHandler)
-	mux.HandleFunc("/api/qr/", QRHandler) // Nouvelle route pour les QR codes
 
 	// PUT / DELETE pour une URL spécifique
 	mux.HandleFunc("/api/urls/", func(w http.ResponseWriter, r *http.Request) {
