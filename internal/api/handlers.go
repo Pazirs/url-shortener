@@ -42,11 +42,12 @@ type MyURLsResponse struct {
 	ShortCode string `json:"short_code"`
 	LongURL   string `json:"long_url"`
 	CreatedAt string `json:"created_at"`
-	ExpiresAt string `json:"expires_at,omitempty"`
+	ExpiresAt string `json:"expires_at,omitempty"` // NOUVEAU CHAMP
 }
 
 type UpdateURLRequest struct {
-	LongURL string `json:"long_url"`
+	LongURL     string `json:"long_url"`
+	CustomAlias string `json:"custom_alias,omitempty"` // Champ ajouté pour la modification d'alias
 }
 
 // GetMeHandler : vérifie si la session est valide
@@ -182,6 +183,7 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// MODIFICATION ICI : On récupère aussi expires_at
 	rows, err := db.DB.Query("SELECT id, short_code, long_url, created_at, expires_at FROM urls WHERE user_id = ?", userID)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to retrieve URLs.")
@@ -192,12 +194,13 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 	var urls []MyURLsResponse
 	for rows.Next() {
 		var u MyURLsResponse
-		var expiresAt sql.NullString
+		var expiresAt sql.NullString // Variable temporaire pour gérer le NULL
 
 		err := rows.Scan(&u.ID, &u.ShortCode, &u.LongURL, &u.CreatedAt, &expiresAt)
 		if err != nil {
 			continue
 		}
+		// Si une date d'expiration existe, on l'ajoute à la réponse
 		if expiresAt.Valid {
 			u.ExpiresAt = expiresAt.String
 		}
@@ -246,7 +249,7 @@ func DeleteURLHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "URL deleted successfully"})
 }
 
-// Handler pour mettre à jour une URL
+// Handler pour mettre à jour une URL (ET l'alias si fourni)
 func UpdateURLHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only PUT method is allowed.")
@@ -267,23 +270,50 @@ func UpdateURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortCode := strings.TrimPrefix(r.URL.Path, "/api/urls/")
+	oldShortCode := strings.TrimPrefix(r.URL.Path, "/api/urls/")
 	var req UpdateURLRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.LongURL == "" {
 		writeJSONError(w, http.StatusBadRequest, "invalid_request", "Invalid or missing 'long_url'.")
 		return
 	}
 
-	res, err := db.DB.Exec("UPDATE urls SET long_url = ? WHERE short_code = ? AND user_id = ?", req.LongURL, shortCode, userID)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to update URL.")
-		return
-	}
+	// LOGIQUE DE MODIFICATION D'ALIAS
+	// 1. Si un nouvel alias est fourni et qu'il est différent de l'ancien
+	if req.CustomAlias != "" && req.CustomAlias != oldShortCode {
+		// Vérifier si le nouvel alias est déjà pris
+		var exists int
+		err := db.DB.QueryRow("SELECT 1 FROM urls WHERE short_code = ?", req.CustomAlias).Scan(&exists)
+		if err == nil {
+			writeJSONError(w, http.StatusConflict, "alias_taken", "Cet alias est déjà utilisé.")
+			return
+		}
 
-	rowsAffected, _ := res.RowsAffected()
-	if rowsAffected == 0 {
-		writeJSONError(w, http.StatusNotFound, "not_found", "URL not found or not owned by user.")
-		return
+		// Mise à jour de l'alias ET de l'URL
+		res, err := db.DB.Exec("UPDATE urls SET long_url = ?, short_code = ? WHERE short_code = ? AND user_id = ?", req.LongURL, req.CustomAlias, oldShortCode, userID)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to update URL and Alias.")
+			return
+		}
+
+		rowsAffected, _ := res.RowsAffected()
+		if rowsAffected == 0 {
+			writeJSONError(w, http.StatusNotFound, "not_found", "URL not found or not owned by user.")
+			return
+		}
+
+	} else {
+		// 2. Mise à jour de l'URL uniquement (comportement classique)
+		res, err := db.DB.Exec("UPDATE urls SET long_url = ? WHERE short_code = ? AND user_id = ?", req.LongURL, oldShortCode, userID)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to update URL.")
+			return
+		}
+
+		rowsAffected, _ := res.RowsAffected()
+		if rowsAffected == 0 {
+			writeJSONError(w, http.StatusNotFound, "not_found", "URL not found or not owned by user.")
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
