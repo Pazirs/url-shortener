@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import "./Dashboard.css"; // nouveau fichier CSS pour le dashboard
+import "./Dashboard.css";
 
 const BACKEND = "http://localhost:8080";
 
@@ -11,23 +11,30 @@ export default function Dashboard() {
   const [message, setMessage] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
 
-  // Fonction formatage universel (UTC vers Local)
+  function isExpired(dateString) {
+    if (!dateString) return false;
+    let safeDateString = dateString;
+    if (dateString.includes(" ") && !dateString.includes("T")) {
+      safeDateString = dateString.replace(" ", "T") + "Z";
+    } else if (!dateString.endsWith("Z")) {
+      safeDateString += "Z";
+    }
+    const expiry = new Date(safeDateString);
+    return new Date() > expiry;
+  }
+
   function formatDate(dateString) {
     if (!dateString) return "";
-    
-    // Normalisation format pour être sûr que c'est traité en UTC
     let safeDateString = dateString;
-    // Si format "YYYY-MM-DD HH:MM:SS" (sans T), on le transforme
     if (dateString.includes(" ") && !dateString.includes("T")) {
-        safeDateString = dateString.replace(" ", "T") + "Z";
+      safeDateString = dateString.replace(" ", "T") + "Z";
     } else if (!dateString.endsWith("Z")) {
-        // Si ISO sans Z, on ajoute Z
-        safeDateString += "Z";
+      safeDateString += "Z";
     }
-
     const date = new Date(safeDateString);
-    // Affichage dans la locale du navigateur (automatique)
-    return date.toLocaleString();
+    return date.toLocaleString(undefined, { 
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+    });
   }
 
   async function fetchUrls() {
@@ -37,17 +44,13 @@ export default function Dashboard() {
         method: "GET",
         credentials: "include",
       });
-
       const data = await res.json().catch(() => []);
       if (!res.ok) {
-        setMessage(data.message || "Impossible de récupérer les URLs");
         setUrls([]);
         return;
       }
-
       setUrls(Array.isArray(data) ? data : []);
     } catch {
-      setMessage("Erreur réseau, backend OFF ?");
       setUrls([]);
     }
   }
@@ -61,12 +64,8 @@ export default function Dashboard() {
     setMessage("");
     setShortUrl("");
 
-    if (!url) {
-      setMessage("Veuillez entrer une URL");
-      return;
-    }
+    if (!url) return;
 
-    // Conversion UTC avant envoi
     let expiresAtUTC = "";
     if (expiresAt) {
       const localDate = new Date(expiresAt);
@@ -95,64 +94,41 @@ export default function Dashboard() {
       setShortUrl(data.short_url);
       setExpiresAt("");
       setCustomAlias("");
-      setMessage("URL raccourcie avec succès !");
+      setUrl(""); 
+      setMessage("Lien créé avec succès !");
       fetchUrls();
     } catch {
-      setMessage("Erreur réseau, backend OFF ?");
+      setMessage("Erreur réseau");
     }
   }
 
   async function handleDelete(shortCode) {
-    setMessage("");
-    if (!window.confirm("Voulez-vous vraiment supprimer cette URL ?")) return;
-
+    if (!window.confirm("Supprimer ce lien définitivement ?")) return;
     try {
-      const res = await fetch(`${BACKEND}/api/urls/${shortCode}`, {
+      await fetch(`${BACKEND}/api/urls/${shortCode}`, {
         method: "DELETE",
         credentials: "include",
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setMessage(data.message || "Erreur inconnue lors de la suppression");
-        return;
-      }
-
-      setMessage("URL supprimée avec succès");
       fetchUrls();
     } catch {
-      setMessage("Erreur réseau, backend OFF ?");
+      alert("Erreur réseau");
     }
   }
 
   async function handleEdit(shortCode, currentLongUrl) {
-    const newUrl = prompt("Nouvelle URL :", currentLongUrl || "");
+    const newUrl = prompt("Nouvelle URL de destination :", currentLongUrl || "");
     if (!newUrl) return;
 
-    if (!/^https?:\/\//.test(newUrl)) {
-      if (!window.confirm("L'URL ne commence pas par http(s). Continuer quand même ?")) return;
-    }
-
     try {
-      const res = await fetch(`${BACKEND}/api/urls/${shortCode}`, {
+      await fetch(`${BACKEND}/api/urls/${shortCode}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ long_url: newUrl }),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setMessage(data.message || "Erreur lors de la modification");
-        return;
-      }
-
-      setMessage("URL modifiée avec succès !");
       fetchUrls();
     } catch {
-      setMessage("Erreur réseau, backend OFF ?");
+      alert("Erreur réseau");
     }
   }
 
@@ -162,125 +138,132 @@ export default function Dashboard() {
         method: "GET",
         credentials: "include",
       });
-
       const data = await res.json();
-
       if (!res.ok) {
-        alert(data.message || "Erreur lors de la récupération des stats");
+        alert("Erreur stats");
         return;
       }
-
-      const total = data.total_clicks ?? data.total ?? 0;
-      const uniques = data.unique_visitors ?? data.unique ?? 0;
-      const clicksByDay = data.clicks_by_day || {};
-      const detailed = data.detailed_clicks || [];
-
-      let byDayText = "";
-      const days = Object.keys(clicksByDay).sort();
-      byDayText = days.length
-        ? days.map(d => `${d}: ${clicksByDay[d]}`).join("\n")
-        : "Aucune donnée journalière.";
-
-      let detailedText = "";
-      if (detailed.length) {
-        detailedText = detailed
-          .map(c => `${formatDate(c.date)} - IP: ${c.ip || "N/A"}, Ville: ${c.city || "N/A"}, Pays: ${c.country || "N/A"}`)
-          .join("\n");
-      } else {
-        detailedText = "Aucun clic enregistré.";
-      }
-
-      alert(
-        `📊 Statistiques pour ${shortCode}\n\nTotal clicks : ${total}\nVisiteurs uniques : ${uniques}\n\nClics par jour:\n${byDayText}\n\nDétails des clics:\n${detailedText}`
-      );
+      
+      const total = data.total_clicks ?? 0;
+      const uniques = data.unique_visitors ?? 0;
+      alert(`📊 Statistiques\n\nTotal clics: ${total}\nVisiteurs uniques: ${uniques}`);
     } catch {
-      alert("Erreur réseau, backend OFF ?");
+      alert("Erreur réseau");
     }
   }
 
-  function shortUrlFromCode(code) {
-    return code ? `${BACKEND}/${code}` : "";
-  }
-
   return (
-    <div className="dashboard-container">
-      <h2>Dashboard</h2>
+    <div className="dashboard-container fade-in">
+      <div className="dashboard-header">
+        <h2>Tableau de bord</h2>
+        <p>Gérez vos liens et analysez vos performances.</p>
+      </div>
 
-      <form className="dashboard-form" onSubmit={handleShorten}>
+      <form className="create-bar" onSubmit={handleShorten}>
         <input
+          className="input-main"
           type="text"
-          placeholder="Collez votre URL ici"
+          placeholder="Collez votre URL longue ici..."
           value={url}
           onChange={e => setUrl(e.target.value)}
           required
         />
-        {/* Nouvel input pour l'alias */}
         <input
+          className="input-small"
           type="text"
           placeholder="Alias (optionnel)"
           value={customAlias}
           onChange={e => setCustomAlias(e.target.value)}
           maxLength={20}
-          style={{ maxWidth: "150px", marginLeft: "10px" }} 
         />
-        {/* Input date expiration */}
         <input
+          className="input-small"
           type="datetime-local"
           value={expiresAt}
           onChange={e => setExpiresAt(e.target.value)}
-          style={{ maxWidth: "160px", marginLeft: "10px" }}
         />
-        <button type="submit">Raccourcir</button>
+        <button type="submit" className="btn-create">Raccourcir ✨</button>
       </form>
 
       {shortUrl && (
-        <p className="short-url-display">
-          Short URL: <a href={shortUrl} target="_blank" rel="noopener noreferrer">{shortUrl}</a>
-          <button onClick={() => navigator.clipboard?.writeText(shortUrl)}>Copier</button>
-        </p>
+        <div className="success-banner">
+          <span>
+            Lien prêt : 
+            <a href={shortUrl} target="_blank" rel="noopener noreferrer">{shortUrl}</a>
+          </span>
+          <button className="btn-copy" onClick={() => navigator.clipboard?.writeText(shortUrl)}>
+            Copier
+          </button>
+        </div>
       )}
 
-      {message && <p className="message-text">{message}</p>}
-
-      <h3>Mes URLs</h3>
-
-      {urls.length === 0 ? (
-        <p>Vous n’avez encore aucune URL raccourcie. Utilisez le formulaire ci-dessus pour commencer !</p>
-      ) : (
-        <table className="urls-table">
-          <thead>
-            <tr>
-              <th>Short URL</th>
-              <th>Short Code</th>
-              <th>URL originale</th>
-              <th>Créé le</th>
-              <th>Expiration</th> {/* Colonne ajoutée */}
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {urls.map(u => {
-              const shortFull = shortUrlFromCode(u.short_code);
-              return (
-                <tr key={u.id}>
-                  <td><a href={shortFull} target="_blank" rel="noopener noreferrer">{shortFull}</a></td>
-                  <td>{u.short_code}</td>
-                  <td><a href={u.long_url} target="_blank" rel="noopener noreferrer">{u.long_url}</a></td>
-                  <td>{formatDate(u.created_at)}</td>
-                  {/* Affichage de la date d'expiration ou 'Aucune' */}
-                  <td>{u.expires_at ? formatDate(u.expires_at) : "Aucune"}</td>
-                  <td>
-                    <button onClick={() => handleEdit(u.short_code, u.long_url)}>Modifier</button>{" "}
-                    <button onClick={() => handleStats(u.short_code)}>Stats</button>{" "}
-                    <button onClick={() => window.open(`${BACKEND}/api/qr/${u.short_code}`, "_blank")}> QR Code </button>
-                    <button onClick={() => handleDelete(u.short_code)}>Supprimer</button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {message && !message.includes("succès") && (
+        <div style={{color: "var(--danger-text)", marginBottom: "1rem", textAlign: "center"}}>
+          {message}
+        </div>
       )}
+
+      <div className="table-card">
+        {urls.length === 0 ? (
+          <div style={{padding: "3rem", textAlign: "center", color: "var(--text-light)"}}>
+            <p>Aucun lien pour le moment. Créez votre premier raccourci ci-dessus ! 🚀</p>
+          </div>
+        ) : (
+          <table className="table-responsive">
+            <thead>
+              <tr>
+                <th>Lien Court</th>
+                <th>Destination</th>
+                <th>Créé le</th>
+                <th>Statut / Expiration</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {urls.map(u => {
+                const fullShort = u.short_code ? `${BACKEND}/${u.short_code}` : "";
+                const expired = u.expires_at ? isExpired(u.expires_at) : false;
+
+                return (
+                  <tr key={u.id}>
+                    <td>
+                      <a href={fullShort} target="_blank" rel="noopener noreferrer" className="short-link">
+                        {u.short_code}
+                      </a>
+                    </td>
+                    <td>
+                      <span className="original-link" title={u.long_url}>{u.long_url}</span>
+                    </td>
+                    <td><span className="date-text">{formatDate(u.created_at)}</span></td>
+                    <td>
+                      {u.expires_at ? (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                          <span className={`status-badge ${expired ? 'expired' : 'active'}`}>
+                            {expired ? 'Expiré' : 'Actif'}
+                          </span>
+                          <span className="date-text" style={{fontSize: '0.75rem'}}>
+                            {formatDate(u.expires_at)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="status-badge active">Toujours actif</span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="actions-group">
+                        <button className="icon-btn" title="Modifier" onClick={() => handleEdit(u.short_code, u.long_url)}>✏️</button>
+                        <button className="icon-btn" title="Statistiques" onClick={() => handleStats(u.short_code)}>📊</button>
+                        <button className="icon-btn" title="QR Code" onClick={() => window.open(`${BACKEND}/api/qr/${u.short_code}`, "_blank")}>📱</button>
+                        <button className="icon-btn delete" title="Supprimer" onClick={() => handleDelete(u.short_code)}>🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
