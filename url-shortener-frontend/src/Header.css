@@ -1,44 +1,73 @@
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
   display: flex;
   justify-content: space-between;
-  padding: 15px 25px;
-  border-bottom: 1px solid #ddd;
   align-items: center;
-  background-color: #f9f9f9;
+  padding: 1rem 2rem;
+  
+  /* Effet Glassmorphism */
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .logo {
-  font-size: 22px;
-  font-weight: bold;
-  text-decoration: none;
-  color: #333;
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary) 0%, #818cf8 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
 }
 
 .nav {
   display: flex;
-  gap: 15px;
   align-items: center;
+  gap: 2rem;
 }
 
 .nav-link {
-  text-decoration: none;
-  color: #007bff;
+  font-size: 0.95rem;
   font-weight: 500;
+  color: var(--text-secondary);
+  position: relative;
 }
 
 .nav-link:hover {
-  text-decoration: underline;
+  color: var(--primary);
+}
+
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: -4px;
+  left: 0;
+  background-color: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+  width: 100%;
 }
 
 .logout-button {
-  padding: 6px 12px;
-  background-color: #ff4d4f;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--danger-text);
+  background-color: var(--danger-bg);
+  padding: 0.5rem 1.2rem;
+  border-radius: 99px;
+  transition: all 0.2s ease;
 }
 
 .logout-button:hover {
-  background-color: #d9363e;
+  background-color: #fecaca;
+  transform: translateY(-1px);
 }
