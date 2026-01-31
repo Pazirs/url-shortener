@@ -1,25 +1,54 @@
 .home-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   text-align: center;
-  margin-top: 80px;
+  padding: 8rem 2rem;
+
+  background: radial-gradient(circle at 50% 50%, #fff 0%, #f1f5f9 100%);
+  min-height: 90vh;
+}
+
+.home-container h1 {
+  font-size: 4rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  color: var(--text-main);
+  letter-spacing: -1px;
+  
+
+}
+
+.highlight {
+  background: linear-gradient(135deg, var(--primary) 0%, #a855f7 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .home-subtitle {
-  font-size: 18px;
-  margin-top: 10px;
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin-bottom: 3rem;
+  line-height: 1.6;
 }
 
 .home-button {
-  margin-top: 30px;
-  display: inline-block;
-  padding: 12px 25px;
-  background-color: #007bff;
-  color: #fff;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: bold;
-  transition: background-color 0.2s;
+  background-color: var(--text-main); 
+  color: white;
+  padding: 1rem 2.5rem;
+  border-radius: 99px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.2);
 }
 
 .home-button:hover {
-  background-color: #0056b3;
+  transform: translateY(-3px);
+  box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.3);
+  background-color: #000;
 }
