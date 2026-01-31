@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BACKEND_URL } from "./config";
 import "./Form.css";
 
 export default function Register() {
@@ -11,7 +12,7 @@ export default function Register() {
     setMessage("");
 
     try {
-      const res = await fetch("http://localhost:8080/api/register", {
+      const res = await fetch(`${BACKEND_URL}/api/register`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
