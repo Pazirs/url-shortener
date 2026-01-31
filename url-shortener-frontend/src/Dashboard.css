@@ -19,7 +19,7 @@
   color: var(--text-secondary);
 }
 
-/* --- Barre de création --- */
+/* --- Barre de création (Look "Toolbar") --- */
 .create-bar {
   background: var(--bg-card);
   padding: 1rem;
@@ -105,7 +105,6 @@
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border);
   overflow: hidden;
-  overflow-x: auto;
 }
 
 .table-responsive {
@@ -141,25 +140,88 @@
   background-color: #f8fafc;
 }
 
-.short-link { color: var(--primary); font-weight: 600; }
-.original-link { max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; color: var(--text-light); }
-.status-badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-.status-badge.active { background-color: var(--success-bg); color: var(--success-text); }
-.status-badge.expired { background-color: var(--warning-bg); color: var(--warning-text); }
-.date-text { font-size: 0.85rem; color: var(--text-secondary); }
+/* Styles de cellules */
+.short-link {
+  color: var(--primary);
+  font-weight: 600;
+}
 
-.actions-group { display: flex; gap: 0.5rem; }
-.icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--text-secondary); transition: all 0.2s; background-color: transparent; }
-.icon-btn:hover { background-color: #f1f5f9; color: var(--primary); }
-.icon-btn.delete:hover { background-color: var(--danger-bg); color: var(--danger-text); }
+.original-link {
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  color: var(--text-light);
+}
 
-@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+/* Badges de statut */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-badge.active {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+}
+
+.status-badge.expired {
+  background-color: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.date-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Actions */
+.actions-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  background-color: transparent;
+}
+
+.icon-btn:hover {
+  background-color: #f1f5f9;
+  color: var(--primary);
+}
+
+.icon-btn.delete:hover {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* --- MODALES --- */
 .modal-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5); /* Fond semi-transparent */
   backdrop-filter: blur(4px);
   z-index: 2000;
   display: flex;
@@ -245,22 +307,26 @@
   gap: 1rem;
   margin-bottom: 1rem;
 }
+
 .stat-box {
   background: #f8fafc;
   padding: 1rem;
   border-radius: 8px;
   text-align: center;
 }
+
 .stat-number {
   font-size: 1.5rem;
   font-weight: 800;
   color: var(--primary);
   display: block;
 }
+
 .stat-label {
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
+
 .stat-details {
   max-height: 200px;
   overflow-y: auto;
@@ -269,6 +335,7 @@
   border-radius: 8px;
   font-size: 0.85rem;
 }
+
 .qr-image-container {
   display: flex;
   justify-content: center;
