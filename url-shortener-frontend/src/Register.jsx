@@ -1,7 +1,5 @@
-// src/Register.jsx
 import { useState } from "react";
 import "./Form.css";
-
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -34,27 +32,37 @@ export default function Register() {
   }
 
   return (
-    <div>
-      <h2>Créer un compte</h2>
-      <form onSubmit={handleRegister}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        /><br/>
-        <input
-          type="password"
-          placeholder="Mot de passe"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        /><br/>
-        <button type="submit">S'inscrire</button>
-      </form>
+    <div className="auth-page fade-in">
+      <div className="auth-card">
+        <h2>Créer un compte 🚀</h2>
+        <form onSubmit={handleRegister}>
+          <div className="form-group">
+            <input
+              type="email"
+              placeholder="Votre email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <input
+              type="password"
+              placeholder="Choisissez un mot de passe"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn-primary">S'inscrire</button>
+        </form>
 
-      {message && (
-  <p className={message.includes("réussie") ? "success" : ""}>{message}</p>
-)}
+        {message && (
+          <div className={`message-box ${message.includes("réussie") ? "success" : "error"}`}>
+            {message}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
