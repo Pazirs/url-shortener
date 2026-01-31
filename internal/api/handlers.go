@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -13,6 +14,17 @@ import (
 
 	"github.com/skip2/go-qrcode"
 )
+
+// Récupère l'URL de base (ex: http://localhost:8080) depuis l'environnement
+// Utile si tu déploies sur un vrai domaine (ex: https://mon-site.com)
+func getBaseURL() string {
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		return "http://localhost:8080"
+	}
+	// Nettoyage du slash final si présent pour éviter les doubles //
+	return strings.TrimSuffix(baseURL, "/")
+}
 
 // Structures de requête et réponse
 type ShortenRequest struct {
@@ -30,7 +42,7 @@ type MyURLsResponse struct {
 	ShortCode string `json:"short_code"`
 	LongURL   string `json:"long_url"`
 	CreatedAt string `json:"created_at"`
-	ExpiresAt string `json:"expires_at,omitempty"` // NOUVEAU CHAMP
+	ExpiresAt string `json:"expires_at,omitempty"`
 }
 
 type UpdateURLRequest struct {
@@ -141,8 +153,9 @@ func ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Utilisation de la configuration dynamique pour l'URL de réponse
 	resp := ShortenResponse{
-		ShortURL: fmt.Sprintf("http://localhost:8080/%s", code),
+		ShortURL: fmt.Sprintf("%s/%s", getBaseURL(), code),
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
@@ -169,7 +182,6 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// MODIFICATION ICI : On récupère aussi expires_at
 	rows, err := db.DB.Query("SELECT id, short_code, long_url, created_at, expires_at FROM urls WHERE user_id = ?", userID)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "database_error", "Failed to retrieve URLs.")
@@ -180,13 +192,12 @@ func MyURLsHandler(w http.ResponseWriter, r *http.Request) {
 	var urls []MyURLsResponse
 	for rows.Next() {
 		var u MyURLsResponse
-		var expiresAt sql.NullString // Variable temporaire pour gérer le NULL
+		var expiresAt sql.NullString
 
 		err := rows.Scan(&u.ID, &u.ShortCode, &u.LongURL, &u.CreatedAt, &expiresAt)
 		if err != nil {
 			continue
 		}
-		// Si une date d'expiration existe, on l'ajoute à la réponse
 		if expiresAt.Valid {
 			u.ExpiresAt = expiresAt.String
 		}
@@ -448,7 +459,8 @@ func QRHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fullShortURL := fmt.Sprintf("http://localhost:8080/%s", shortCode)
+	// Utilisation de la configuration dynamique pour l'URL du QR Code
+	fullShortURL := fmt.Sprintf("%s/%s", getBaseURL(), shortCode)
 	png, err := qrcode.Encode(fullShortURL, qrcode.Medium, 256)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "qr_error", "Failed to generate QR code.")
