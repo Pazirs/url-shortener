@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BACKEND_URL } from "./config";
 import "./Form.css";
 
 export default function Login({ onLoginSuccess }) {
@@ -11,7 +12,7 @@ export default function Login({ onLoginSuccess }) {
     setMessage("");
 
     try {
-      const res = await fetch("http://localhost:8080/api/login", {
+      const res = await fetch(`${BACKEND_URL}/api/login`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -26,7 +27,6 @@ export default function Login({ onLoginSuccess }) {
       }
 
       setMessage("Connexion réussie !");
-      // Petit délai pour laisser l'utilisateur voir le message
       setTimeout(() => onLoginSuccess(), 500); 
 
     } catch (err) {
