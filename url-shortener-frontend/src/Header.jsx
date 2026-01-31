@@ -1,14 +1,19 @@
 import { Link, useNavigate } from "react-router-dom";
-import "./Header.css"; // nouveau fichier CSS
+import { BACKEND_URL } from "./config";
+import "./Header.css";
 
 export default function Header({ loggedIn, setLoggedIn }) {
   const navigate = useNavigate();
 
   async function logout() {
-    await fetch("http://localhost:8080/api/logout", {
-      method: "POST",
-      credentials: "include"
-    });
+    try {
+      await fetch(`${BACKEND_URL}/api/logout`, {
+        method: "POST",
+        credentials: "include"
+      });
+    } catch (error) {
+        console.error("Erreur lors de la déconnexion", error);
+    }
     setLoggedIn(false);
     navigate("/");
   }
