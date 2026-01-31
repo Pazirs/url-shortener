@@ -1,7 +1,5 @@
-// src/Login.jsx
 import { useState } from "react";
 import "./Form.css";
-
 
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState("");
@@ -15,7 +13,7 @@ export default function Login({ onLoginSuccess }) {
     try {
       const res = await fetch("http://localhost:8080/api/login", {
         method: "POST",
-        credentials: "include", // IMPORTANT pour le cookie
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
@@ -28,7 +26,8 @@ export default function Login({ onLoginSuccess }) {
       }
 
       setMessage("Connexion réussie !");
-      onLoginSuccess(); // Passe à Dashboard
+      // Petit délai pour laisser l'utilisateur voir le message
+      setTimeout(() => onLoginSuccess(), 500); 
 
     } catch (err) {
       setMessage("Erreur réseau, backend OFF ?");
@@ -36,26 +35,37 @@ export default function Login({ onLoginSuccess }) {
   }
 
   return (
-    <div>
-      <h2>Connexion</h2>
-      <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        /><br/>
-        <input
-          type="password"
-          placeholder="Mot de passe"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        /><br/>
-        <button type="submit">Se connecter</button>
-      </form>
-      {message && (
-  <p className={message.includes("réussie") ? "success" : ""}>{message}</p>
-)}
+    <div className="auth-page fade-in">
+      <div className="auth-card">
+        <h2>Bienvenue 👋</h2>
+        <form onSubmit={handleLogin}>
+          <div className="form-group">
+            <input
+              type="email"
+              placeholder="Adresse email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <input
+              type="password"
+              placeholder="Mot de passe"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn-primary">Se connecter</button>
+        </form>
+
+        {message && (
+          <div className={`message-box ${message.includes("réussie") ? "success" : "error"}`}>
+            {message}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
